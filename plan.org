@@ -1,0 +1,69 @@
+#+title: Interpretation for lazy and curious
+* Interpretation. part 1
+* Parsing and other friends
+** The simplest expressions you can think of
+*** Integer values
+*** Addition
+*** Multiplication
+** Representing expressions in a code
+** The simplest parser you can think of
+** What else can we add to the expressions
+* Evaluating expressions for fun and profit
+** Expressions vs statements
+** Evaluating integers. As simple as it gets
+** Evaluating addition
+** Evaluating multiplication
+* Core language, host language and a lot of sugar
+** difference between core, host and sugared
+** Adding sugar
+***   Subtraction
+***   Unary minus
+** Pros and cons of sugaring
+* Errors and strange things
+** adding division
+** what should happen if we divide by zero?
+* Adding variables to the mix
+** It's all about environment
+** adding environment to our expressions
+** if you change the environment, expression changes as well.
+* Defining variables for fun and profit
+**   Where do our variables live?
+** Mutalbe vs immutable variables
+**   should variables have a type?
+* Adding primitive functions to the language
+**   powers, exponents, mods and so on
+** adding string support to the language
+* Evaluating parameters of the funciton. Order matters
+** lazy vs eager evaluation. Pros, cons, implementation
+* Adding functions to the language.
+** function definition syntax
+** function calls syntax
+** What should happen if you define function within the function?
+** What should happen if you call function within the function?
+** Few words on recursive calls
+* Adding conditional expressions
+** adding boolean expression to the language
+** adding IFs to the mix
+** control flow is not as straighforward as you might think of it
+* Adding lists to the language
+** how generic is your generic?
+** how generic is your function?
+** adding foreach
+** adding list comprehension
+* Typing and optimisation. part 2
+* Something about evaluation speed
+
+** environments again
+** tail call optimisation
+** JZ, JNZ, JMP, Lisp & WebAssembly
+* Adding types to the language
+** number vs float vs int32 vs int64
+** function should know about types as well
+* Minimal required type theory
+** Why golang avoided generics for so long
+** How to read typing expressions
+* type inferencing  the language. Simple version
+* Generating WebAssembly for fun and profit
+* Generating JVM based things for fun and profit
+* type inferencing on steroids
+** How haskell, scala and friends work under the hood
