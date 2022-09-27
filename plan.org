@@ -1,18 +1,648 @@
 #+title: Interpretation for lazy and curious
 * Interpretation. part 1
+The core functionality of interpreters might be distilled to two steps.
+1) Parse source code to some internal representation
+2) Evaluate the internal representation, so it will be reduced to the result we need.
+Here I will do my best to skip as much as possible of the first one.
+You dont' need to know quantum physics to be able to swim.
 * Parsing and other friends
+Most of the compilers and interpreters books start with parsing.
+You neeed to investigate what DFA is, how it is different from NFA, and why regular expressions are not always the best choice.
+Then you will follow on grammars. Context free grammars, left recursion elimination and so on.
+After that you will be presented with tools that will make your life easier. Yacc, Bison, monadic parsers.
+This usually happens 200-300 pages into the book. And while this is very important part of the story, I would like to argue this can be postponed to the point where you actually know what you are doing.
+Therefore approach in this book will take us as fast as possible to the actual interpretation, skipping all unnecessary steps if possible.
+To begin with we will start with arithmetic expressions.
 ** The simplest expressions you can think of
+Implementing anything on JVM starts with interfaces.
+let's us to the same and implement your first Expression
+#+begin_src kotlin
+interface Expression
+#+end_src
+
+It's not much, but we will improve it really fast. Just stay tuned.
 *** Integer values
+It is hard to do any computations when you don't have numbers.
+#+begin_src kotlin
+data class EInt(val v:Int):Expression
+#+end_src
+For now integers are more than enough for us to have. Adding boolean and float values will follow.
 *** Addition
+Adding additional addition to the mix would not be a problem
+#+begin_src kotlin
+data class EAdd(val a:EInt, val b:EInt): Expression
+
+#+end_src
 *** Multiplication
-** Representing expressions in a code
-** The simplest parser you can think of
+The same goes for the multiplication
+#+begin_src kotlin
+data class EMul(val a:EInt, val b:EInt): Expression
+#+end_src
 ** What else can we add to the expressions
+** Representing expressions in a code
+Now we have all the required components to actually start calulating.
+How would expression
+#+begin_src kotlin
+2+2
+#+end_src
+would look in our data class representation?
+#+begin_src kotlin
+EAdd(2,2)
+#+end_src
+Multiplication would not be that different
+#+begin_src kotlin
+5*5
+#+end_src
+#+begin_src kotlin
+EMul(5, 5)
+#+end_src
+And if we want to express something more complex, we will just nest them
+#+begin_src kotlin
+(2+2)*5*5
+#+end_src
+#+begin_src kotlin
+EMul(5, EMul(5, EAdd(2 , 2)))
+#+end_src
+
 * Evaluating expressions for fun and profit
-** Expressions vs statements
 ** Evaluating integers. As simple as it gets
+Having expresisons is nice, but why do we need them if we can't calculate them on the fly?
+as TDD teaches us, you whould start from the test first.
+So be it.
+You never can be too slow when doing unit tests. Good coverage for the basics will let you know details of your code workings. As well will save you hours of debugging later on.
+
+#+begin_src kotlin
+    @Test
+    fun testSimpleInteger(){
+        assertEquals(EInt(5), eval(EInt(5)))
+        assertEquals(EInt(-5), eval(EInt(-5)))
+        assertEquals(EInt(0), eval(EInt(0)))
+    }
+#+end_src
+
+What would be the easiest implementation of *eval* to make it run?
+I came up with this one.
+#+begin_src kotlin
+
+fun eval( e:Expression): Expression{
+    return e;
+}
+#+end_src
+Probably would not require a lot of effort to understand what is happening here.
+and it also makes our tests green.
+
+
 ** Evaluating addition
+Now we are facing our first real challenge.
+How can we evaluate addition?
+
+As usual, let us start with the unit tests, so we don't have a suprises later on.
+#+begin_src kotlin
+ @Test
+    fun testSimpleAddition(){
+        assertEquals(EInt(5), eval(EAdd(EInt(5), EInt(0))))
+        assertEquals(EInt(5), eval(EAdd(EInt(0), EInt(5))))
+        assertEquals(EInt(10), eval(EAdd(EInt(7), EInt(3))))
+        assertEquals(EInt(7), eval(EAdd(EInt(-3), EInt(10))))
+        assertEquals(EInt(6), eval(EAdd(EInt(10), EInt(-4))))
+    }
+#+end_src
+
+obviously if we try to run them now, we would have an error
+
+#+begin_src kotlin
+Expected :EInt(v=5)
+Actual   :EAdd(a=EInt(v=5), b=EInt(v=0))
+#+end_src
+By the way - this is one of the reasons Kotlin is a nice language for these kind of exercises.
+You don't need to write a lot of boilerplates for the *data class*, string representation looks reasonalbe, and saves some mental space for more important things.
+
+We have a red test. What is the simplest way to make it green?
+#+begin_src kotlin
+
+fun eval( e:Expression): Expression{
+    if(e is EAdd){
+        return EInt( e.a.v + e.b.v)
+    }
+    return e
+}
+#+end_src
+
+would this be enough?
+
+Oh wow, tests are green now. But i am not big fan of 'e.a.v' looks very obscure
+Green test allows us to do refactoring bit.
+
+#+begin_src kotlin
+data class EInt(val value:Int):Expression
+
+fun eval( expression:Expression): Expression{
+    if(expression is EAdd){
+        return EInt(expression.a.value + expression.b.value)
+    }
+    return expression
+}
+#+end_src
+
+Are we done with the addition?
+
+What about more complex example?
+#+begin_src kotlin
+1 + 2 + 3 => 6
+assertEquals(EInt(6), eval( EAdd(EInt(1), EAdd( EInt(2),EInt(3)) )))
+#+end_src
+
+And our compiler complains.
+#+begin_src
+Type mismatch: inferred type is EAdd but EInt was expected
+#+end_src
+
+Why is that? Oh yes. in our definition we are expecitng that *EAdd* expects integers as a parameters.
+#+begin_src kotlin
+data class EAdd(val a:EInt, val b:EInt): Expression
+#+end_src
+But now we are trying to pass *EAdd* as second paramter. Of course we should have an error here.
+
+As usual with TDD approach we fixe it with the simplest way possible
+#+begin_src kotlin
+data class EAdd(val a:Expression, val b:Expression): Expression
+#+end_src
+
+Hopefully it will solve our issue.
+
+But apparently it would not.
+
+We get yet another nasty error in our *eval* function
+
+#+begin_src kotlin
+fun eval( expression:Expression): Expression{
+    if(expression is EAdd){
+        return EInt(expression.a.value + expression.b.value)
+        //                         ^
+        //                         |
+        // unresolved reference: value
+    }
+    return expression
+}
+#+end_src
+
+Any ideas?
+Sure. *value* is a field of and integer, and now EAdd works with generic expressions, which might not have a value.
+So we need to come up with a way of converting addition result to values.
+
+#+begin_src kotlin
+fun eval( expression:Expression): Expression{
+    if(expression is EAdd){
+        val left: EInt = eval(expression.a) as EInt
+        val right: EInt  = eval(expression.b) as EInt
+        return EInt(left.value + right.value)
+    }
+    return expression
+}
+#+end_src
+This expression is worth to take a closer look.
+To execute and addition, we need to be sure that both our parameters are integers.
+At the same time when we call *eval* we would get the *Expression* as a result.
+Therefore we need to convert it to the class we want. In our case that would be *EInt*.
+
+Of course this little piece of code might rise some questions.
+What happens if during *eval* will return something different from *EInt* would not that break everything?
+What will happen if during *eval* some error will be raised?
+These are very good questions. and we will get to them later. For now let us keep our focus on general picture.
+
 ** Evaluating multiplication
+After spending so much time on evaluating addition, expanding our expressions to support multiplication is straighforward.
+But first - tests.
+#+begin_src kotlin
+    @Test
+    fun testSimpleMultiplication()
+    {
+        assertEquals(EInt(0), eval(EMul(EInt(0), EInt(42))))
+        assertEquals(EInt(0), eval(EMul(EInt(42), EInt(0))))
+        assertEquals(EInt(42), eval(EMul(EInt(1), EInt(42))))
+        assertEquals(EInt(42), eval(EMul(EInt(42), EInt(1))))
+        assertEquals(EInt(4), eval(EMul(EInt(2), EInt(2))))
+    }
+#+end_src
+
+and implementation
+#+begin_src kotlin
+fun eval( expression:Expression): Expression{
+    if(expression is EAdd){
+        val left: EInt = eval(expression.a) as EInt
+        val right: EInt  = eval(expression.b) as EInt
+        return EInt(left.value + right.value)
+    }
+    if(expression is EMul){
+        val left: EInt = eval(expression.a) as EInt
+        val right: EInt  = eval(expression.b) as EInt
+        return EInt(left.value * right.value)
+    }
+    return expression
+}
+#+end_src
+
+As you can see, the implementation is almost identical. The only difference we have іs the actual operation.
+
+Let's add few more tests to make sure it works if we mix addition and multiplication
+#+begin_src kotlin
+    @Test
+    fun testComplicatedMultiplication() {
+        assertEquals(EInt(10), eval(EMul(EMul(EInt(1), EInt(5)), EInt(2))))
+        assertEquals(EInt(12), eval(EMul(EAdd(EInt(1), EInt(5)), EInt(2))))
+    }
+
+#+end_src
+All the tests are green. Nice.
+In less than 20 lines of code we have working caclulator that can add and multiply arbitrary numbers.
+#+begin_src kotlin
+interface Expression
+data class EInt(val value:Int):Expression
+data class EMul(val a:Expression, val b:Expression): Expression
+data class EAdd(val a:Expression, val b:Expression): Expression
+
+fun eval( expression:Expression): Expression{
+    if(expression is EAdd){
+        val left: EInt = eval(expression.a) as EInt
+        val right: EInt  = eval(expression.b) as EInt
+        return EInt(left.value + right.value)
+    }
+    if(expression is EMul){
+        val left: EInt = eval(expression.a) as EInt
+        val right: EInt  = eval(expression.b) as EInt
+        return EInt(left.value * right.value)
+    }
+    return expression
+}
+
+#+end_src
+
+
+** Sidenotes
+*** Moving evaluation into each expression
+At this point all our evaluation is sitting within one *eval* function.
+If we gonna add more expressions to the interpreter, amount of *if* statements will grow.
+This can be avoided by extracting specific parts of the code, and moving them to expressions.
+The result would look like this:
+#+begin_src kotlin
+interface Expression{
+    fun eval():Expression
+}
+data class EInt(val value:Int):Expression {
+    override fun eval(): Expression {
+        return this
+    }
+}
+
+data class EMul(val a:Expression, val b:Expression): Expression {
+    override fun eval(): Expression {
+        val left = a.eval() as EInt
+        val right = b.eval() as EInt
+        return EInt(left.value * right.value)
+    }
+}
+
+data class EAdd(val a:Expression, val b:Expression): Expression {
+    override fun eval(): Expression {
+        val left = a.eval() as EInt
+        val right = b.eval() as EInt
+        return EInt(left.value + right.value)
+
+    }
+}
+#+end_src
+
+It would require to change the test implementation as well.
+
+#+begin_src kotlin
+ assertEquals(EInt(12), (EMul(EAdd(EInt(1), EInt(5)), EInt(2))).eval())
+
+#+end_src
+*** Simple optimisations
+You might agree that multiplying anything by zero would not help a lot.
+We can include it in our evaluation of *EMul*
+#+begin_src kotlin
+data class EMul(val a:Expression, val b:Expression): Expression {
+    override fun eval(): Expression {
+        val left = a.eval() as EInt
+        if (left.value == 0){
+            return EInt(0)
+        }
+        val right = b.eval() as EInt
+        return EInt(left.value * right.value)
+    }
+}
+#+end_src
+
+And if you agree that integers are immutable values, we can avoid creating new copy of the EInt every time during the evaluation
+
+#+begin_src kotlin
+val zeroInt = EInt(0)
+
+data class EMul(val a:Expression, val b:Expression): Expression {
+    override fun eval(): Expression {
+        val left = a.eval() as EInt
+        if (left.value == 0){
+            return zeroInt
+        }
+        val right = b.eval() as EInt
+        return EInt(left.value * right.value)
+    }
+}
+#+end_src
+* The simplest parser you can think of
+To make the whole parsing easy, let us reiterate what problem are we trying to solve.
+We need to take a string, and convert it to the expression.
+It can be expressed in a test.
+#+begin_src kotlin
+    @Test()
+    fun testSimpleInt(){
+        assertEquals(EInt(42), parse("42"))
+    }
+#+end_src
+
+As you might remember - we are lazy. So we will do something that would allow us to simplify things.
+To use a library and a format a lot of people using now.
+The most popular programming language of the century.
+YAML.
+
+** Parsing integers with yaml
+To make it work we would need to add dependency to the great *snakeyaml* library
+#+begin_src kotlin
+dependencies {
+    // https://mvnrepository.com/artifact/org.yaml/snakeyaml
+    implementation("org.yaml:snakeyaml:1.32")
+
+    testImplementation(kotlin("test"))
+    testImplementation("org.junit.jupiter:junit-jupiter:5.9.0")
+}
+#+end_src
+
+having such a useful tool makes our lives easy.
+
+#+begin_src kotlin
+import org.yaml.snakeyaml.Yaml
+
+fun parse(input:String):Expression{
+    val yaml = Yaml()
+    val script = yaml.load<Any>(input)
+    return EInt(script as Int)
+}
+#+end_src
+
+We cannot parse anything but integers now, but at least our tests are green. Isn't that great?
+** Expanding yaml expressions to support addition
+If you remember, our goal is to convert from strings to expressions as easy as possible.
+To make it happen, the language we would use should be very similar to the expressions we have.
+
+#+begin_src kotlin
+EAdd(EInt(3), EInt(5))
+#+end_src
+
+might be represented in yaml as
+#+begin_src yaml
+add
+  - 1
+  - 2
+#+end_src
+
+And more complex expresison
+#+begin_src kotlin
+EMul(EAdd(EInt(3), EInt(5)), EInt(10))
+#+end_src
+Will have a form
+#+begin_src yaml
+mul
+  - 10
+  - add
+    - 1
+    - 2
+#+end_src
+
+Obviously this is good enough if we want to use it as part of yaml files.
+But when you adding such an expression to the unit test, you would suffer.
+Suffering should be optional, and to removing it we will utilise little known feature of Yaml, called https://yaml.org/spec/1.2.2/#chapter-7-flow-style-productions
+
+#+begin_src kotlin
+EAdd(EInt(3), EInt(5))
+#+end_src
+becomes
+#+begin_src yaml
+[add, 3, 5]
+#+end_src
+
+and
+#+begin_src kotlin
+EMul(EInt(10), EAdd(EInt(1), EInt(2)))
+#+end_src
+is represented as
+
+#+begin_src yaml
+[mul, 10, [add, 1, 2]]
+#+end_src
+I kinda like it. It is shorter, and represents our internal structure pretty much
+** parsing yaml with predefined expressions
+Test goes first
+#+begin_src kotlin
+   @Test()
+    fun testSimpleAdd(){
+        assertEquals(EAdd(EInt(3), EInt(5)), parse("[add, 3, 5]"))
+    }
+#+end_src
+
+When *snakeyaml* parses flow-style expressions, it returns ArrayList.
+So all we need to do is convert ArrayList to expression we want
+
+#+begin_src kotlin
+fun parse(input:String):Expression{
+    val yaml = Yaml()
+    val script = yaml.load<Any>(input)
+    return convert(script)
+}
+fun convert(obj:Any):Expression{
+   if(obj is Int){// if yaml loaded an integer -convert it to EInt
+       return EInt(obj)
+   }
+    if(obj is ArrayList<*>){ // if we have arrayList
+        val operation= obj[0] // we assume initial element is the name of operation
+        if(operation == "add"){
+            val left = convert(obj[1]) // converting first parameter of the operation
+            val right = convert(obj[2]) // converting second parameter of the operation
+            return EAdd(left, right)
+        }
+    }
+    return EInt(-42) // since we don't have errors now, return something strange
+}
+#+end_src
+
+Essentially what we are doing here is very similar to the eval fucntion we defined previously.
+Eval takes Expression as input and returns Integer values.
+parse takes a string as an input and returns Expression.
+Even conversion of addition look very similar. Pay attention to the recursive call in convert.
+
+Of course if our source code would not have the structure we want, we will get very nasty errors.
+But as was said previousy - let us focus on successful flow first, taking care of corner cases later.
+
+Surprisingly enough, this implementation makes our test green.
+Let's see if we try to parse more complicated expression.
+#+begin_src kotlin
+    @Test
+    fun testComplicatedAdd(){
+        assertEquals(
+            EAdd(EAdd(EInt(3), EInt(5)), EInt(42)),
+            parse("[add, [add, 3,5], 42]"))
+    }
+
+#+end_src
+
+Green as well. Nice work!
+** Adding multiplication to the mix
+Now we know what to expect, so we will add both tests from the beginning
+#+begin_src kotlin
+    @Test
+    fun testSimpleMultiplication(){
+        assertEquals(EMul(EInt(11), EInt(33)), parse("[mul, 11, 33]"))
+    }
+    @Test
+    fun testComplicatedMultiplication(){
+        assertEquals(
+            EMul(EMul(EInt(3), EInt(5)), EInt(42)),
+            parse("[mul, [mul, 3,5], 42]"))
+    }
+#+end_src
+
+Implementation of parser is really simple. Nothing new under the sun.
+#+begin_src kotlin
+fun convert(obj:Any):Expression{
+    ...
+    if(obj is ArrayList<*>){
+        ...
+        if(operation =="mul"){
+            val left = convert(obj[1])
+            val right = convert(obj[2])
+            return EMul(left, right)
+        }
+#+end_src
+
+We have a parser for addition, and we have a parser for multiplication.
+Let's see how well they are working together.
+#+begin_src kotlin
+    @Test
+    fun testMulAndAdd(){
+         assertEquals(
+            EMul(EAdd(EInt(22), EInt(11)), EInt(44)),
+            parse("[mul, [add, 22, 11], 44]"))
+    }
+#+end_src
+
+Tests are green. Feels great, isn't it?
+
+** Evaluating parsed expressions
+Now we have both parth of the story. We can take a string and convert it to an expression.
+We can take an expression and evaluate it.
+Let us add some more tests would confirm this fact.
+#+begin_src kotlin
+    @Test
+    fun testComplicatedExpressionWithParsing() {
+        assertEquals(EInt(10), (EMul(EMul(EInt(1), EInt(5)), EInt(2))).eval())
+        assertEquals(EInt(10), parse("[mul, [mul, 1, 5], 2]").eval())
+        assertEquals(EInt(12), (EMul(EAdd(EInt(1), EInt(5)), EInt(2))).eval())
+        assertEquals(EInt(12), parse("[mul, [add, 1, 5], 2]").eval())
+    }
+#+end_src
+
+I specifically put original version here, so it is easy to compare complexity of expressions and amount of brackets.
+
+** One more touch
+If you look closely on the previous test, you might wondered, why did we use *EInt(10)* instead of just *10*? How hard would that be to make it happen?
+
+Well, let's add one more operation, and call it *unparse*. It will take an expression and convert it to our yaml format. in such a way we will have the whole circle of life
+
+Let us extend our expression interface with *unparse* method
+#+begin_src kotlin
+interface Expression{
+    fun eval():Expression
+    fun unparse():String
+}
+#+end_src
+
+And expand our test cases for the parsing.
+Make sure that unparsing parsed expression should give the same result
+#+begin_src kotlin
+
+  @Test
+    fun testSimpleIntUnparse(){
+        assertEquals("42",EInt(42).unparse())
+        assertEquals("42", parse("42").unparse())
+    }
+
+    @Test
+    fun testSimpleAddUnparse(){
+        val yaml = "[add, 3, 5]"
+        assertEquals(yaml, EAdd(EInt(3), EInt(5)).unparse())
+        assertEquals(yaml, parse(yaml).unparse())
+    }
+    @Test
+    fun testComplicatedAddUnparse(){
+        val yaml = "[add, [add, 3, 5], 42]"
+        assertEquals(
+            yaml,
+            EAdd(EAdd(EInt(3), EInt(5)), EInt(42)).unparse())
+        assertEquals(yaml, parse(yaml).unparse())
+    }
+    @Test
+    fun testSimpleMultiplicationUnparse(){
+        val yaml = "[mul, 11, 33]"
+
+        assertEquals(yaml, EMul(EInt(11), EInt(33)).unparse())
+        assertEquals(yaml, parse(yaml).unparse())
+    }
+    @Test
+    fun testComplicatedMultiplicationUnparse(){
+        val yaml = "[mul, [mul, 3, 5], 42]"
+        assertEquals(
+            yaml,
+            EMul(EMul(EInt(3), EInt(5)), EInt(42)).unparse())
+        assertEquals(yaml, parse(yaml).unparse())
+    }
+    @Test
+    fun testMulAndAddUnparse(){
+        val yaml = "[mul, [add, 22, 11], 44]"
+        assertEquals(
+            yaml,
+            EMul(EAdd(EInt(22), EInt(11)), EInt(44)).unparse())
+        assertEquals(yaml, parse(yaml).unparse())
+    }
+
+#+end_src
+
+Remember, the more tests you have, the less corner cases you should worry about.
+
+implementation is straightforward.
+
+#+begin_src kotlin
+data class EInt(val value:Int):Expression {
+    ...
+    override fun unparse(): String {
+        return value.toString()
+    }
+}
+
+data class EMul(val a:Expression, val b:Expression): Expression {
+    ...
+    override fun unparse(): String {
+        return "[mul, ${a.unparse()}, ${b.unparse()}]".format()
+    }
+}
+
+data class EAdd(val a:Expression, val b:Expression): Expression {
+    ...
+    override fun unparse(): String {
+        return "[add, ${a.unparse()}, ${b.unparse()}]"
+    }
+}
+#+end_src
+
 * Core language, host language and a lot of sugar
 ** difference between core, host and sugared
 ** Adding sugar
