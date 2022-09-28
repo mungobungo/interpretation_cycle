@@ -5,6 +5,32 @@ The core functionality of interpreters might be distilled to two steps.
 2) Evaluate the internal representation, so it will be reduced to the result we need.
 Here I will do my best to skip as much as possible of the first one.
 You dont' need to know quantum physics to be able to swim.
+
+** Can you do it?
+When talking about interpretation  most of the people start thinking about complex things.
+register allocation, memory management, grammars and DFAs.
+I will try to keep it simple.
+As simple as possible without loosing core of the essence.
+Let's assume you have a yaml file
+#+begin_src yaml
+bold
+- some text
+- and more text
+#+end_src
+
+How hard would that be to transform this yaml to the html?
+#+begin_src html
+<b>
+  <p>some text</p>
+  <p> and more text></p>
+</b>
+#+end_src
+
+My guess would be that majority of the developers won't have troubles with doing so.
+We're just transforming on tree structure to another tree structure.
+
+And this is the essense of interpretation. We're taking one tree structure and converting it to another tree structure.
+If you can convert yaml to html, you're good to go.
 * Parsing and other friends
 Most of the compilers and interpreters books start with parsing.
 You neeed to investigate what DFA is, how it is different from NFA, and why regular expressions are not always the best choice.
@@ -642,27 +668,848 @@ data class EAdd(val a:Expression, val b:Expression): Expression {
     }
 }
 #+end_src
+As expected, tests are passing.
+** Evaluating parsed expressions
+We took some detour to make the basics work. Now we know how to read yaml, interpret the contents of the yaml using intermediate representation, and save results back to the yaml. Which in turn can be read, interpreted and saved to yaml.
 
+But what is missing is some tests that confirm that our assumptions are correct.
+#+begin_src kotlin
+ @Test
+    fun testSimpleIntegerWithParsing() {
+        assertEquals(EInt(5), parse("5").eval())
+        assertEquals(EInt(-5),parse("-5").eval())
+        assertEquals(EInt(0), parse("0").eval())
+    }
+
+    @Test
+    fun testSimpleAdditionWithParsing() {
+        assertEquals(EInt(5), parse("[add, 5, 0]").eval())
+        assertEquals(EInt(5), parse("[add, 0, 5]").eval())
+        assertEquals(EInt(10),parse("[add, 7, 3]").eval())
+        assertEquals(EInt(7), parse("[add, -3, 10]").eval())
+        assertEquals(EInt(6), parse("[add, 10, -4]").eval())
+    }
+
+    @Test
+    fun testComplexAdditionWithParsing() {
+        assertEquals(EInt(6),  parse("[add, 1, [add, 2,3]]").eval())
+    }
+
+    @Test
+    fun testSimpleMultiplicationWithParsing() {
+        assertEquals(EInt(0), parse("[mul, 0, 42]").eval())
+        assertEquals(EInt(0), parse("[mul, 42, 0]").eval())
+        assertEquals(EInt(42),parse("[mul, 1, 42]").eval())
+        assertEquals(EInt(42), parse("[mul, 42, 1]").eval())
+        assertEquals(EInt(4), parse("[mul, 2, 2]").eval())
+    }
+
+    @Test
+    fun testComplicatedMultiplicationWithParsing() {
+        assertEquals(EInt(10), parse("[mul, 1, [mul, 5, 2]]").eval())
+        assertEquals(EInt(12), parse("[mul, 2, [add, 5, 1]]").eval())
+
+        assertEquals("10", parse("[mul, 1, [mul, 5, 2]]").eval().unparse())
+        assertEquals("12", parse("[mul, 2, [add, 5, 1]]").eval().unparse())
+    }
+#+end_src
+
+In the last test you can see all the parts working together.
+And as you might have guessed, our tests are passing.
+** Food for thought
+Parsing plays important role in the whole evaluation process. While we simplified it to the minimum, we still can improve it.
+
+For example - we have duplication while parsing addition and multiplication operations.
+One way to make it better would be to add support to binary arithmetical operations.
+But that would come at the cost of complicating our abstract syntax tree. As usual in the computer science - you cannot remove the complexity. You can just move it in some other place.
+
+Here's another puzzle for you. What should this expression be parsed into?
+#+begin_src kotlin
+[mul, 0, [add, 11, 42]]
+#+end_src
+
+One might argue it is obvious - result is
+#+begin_src kotlin
+EMul(EInt(0), EAdd(EInt(11), EInt(42)))
+#+end_src
+
+But equally good option is
+#+begin_src kotlin
+EInt(0)
+#+end_src
+
+Since we know that multiplication by zero would give us zero in the end, why bother creating complex expression?
+And as in previous example - we are simplifiying evaluation by complicating parsing.
+You cannot remove the complexity. You can just push it somewhere else.
+** Reflecting and Wrapping up
+It took some time and turns to get to this point.
+A lot of text, and a lot of explanations. But try to look at it from the different perspective.
+our parser is 26 lines long, and our interpreter is just 42 lines long.
+In less than 100 lines we have fully functional interpreter, that can deal with complex math expressions.
+And load and save expressions to yaml.
+
+Let's look at our code in its full glory.
+#+begin_src kotlin
+// Domain.kt
+interface Expression{
+    fun eval():Expression
+    fun unparse():String
+}
+data class EInt(val value:Int):Expression {
+    override fun eval(): Expression {
+        return this
+    }
+
+    override fun unparse(): String {
+        return value.toString()
+    }
+}
+
+val zeroInt = EInt(0)
+data class EMul(val a:Expression, val b:Expression): Expression {
+    override fun eval(): Expression {
+        val left = a.eval() as EInt
+        if (left.value == 0){
+            return zeroInt
+        }
+        val right = b.eval() as EInt
+        return EInt(left.value * right.value)
+    }
+
+    override fun unparse(): String {
+        return "[mul, ${a.unparse()}, ${b.unparse()}]".format()
+    }
+}
+
+data class EAdd(val a:Expression, val b:Expression): Expression {
+    override fun eval(): Expression {
+        val left = a.eval() as EInt
+        val right = b.eval() as EInt
+        return EInt(left.value + right.value)
+
+    }
+
+    override fun unparse(): String {
+        return "[add, ${a.unparse()}, ${b.unparse()}]"
+    }
+}
+// Parser.kt
+import org.yaml.snakeyaml.Yaml
+
+fun parse(input:String):Expression{
+    val yaml = Yaml()
+    val script = yaml.load<Any>(input)
+    return convert(script)
+}
+fun convert(obj:Any):Expression{
+   if(obj is Int){
+       return EInt(obj)
+   }
+    if(obj is ArrayList<*>){
+        val operation= obj[0]
+        if(operation == "add"){
+            val left = convert(obj[1])
+            val right = convert(obj[2])
+            return EAdd(left, right)
+        }
+        if(operation =="mul"){
+            val left = convert(obj[1])
+            val right = convert(obj[2])
+            return EMul(left, right)
+        }
+    }
+    return EInt(-42)
+}
+#+end_src
 * Core language, host language and a lot of sugar
-** difference between core, host and sugared
+When implementing and interpreter you want to have ability to define new type of capabilites.
+At the same time you don't want to spend too much time refactoring base implementation.
+Changing Ast and tests for it, implementations, is very time consuming process.
+** core, host, sugared
+This can be avoided by introducing new level of abstration. As you know, you can solve every problem in IT by adding an additional level of abstraction.
+Let's call our arimetic language we have the core language. It is core of our interpreter, and we don't want to expose its internal for the customers.
+We would like to keep it as small as possible, so all refatoring and optimisations would have smaller blast radius.
+As for ease of use we can create new expressions, which we would call sugared expressions.
+They will be used as our interface, and should be converted to the core language to be interpreted
 ** Adding sugar
-***   Subtraction
-***   Unary minus
-** Pros and cons of sugaring
+Let's say we want to add new operation to the mix *sub*, which stands for the substraction.
+how would it fit to our idea of sugared language?
+#+begin_src kotlin
+interface SugarExpression{
+    fun desugar():Expression
+}
+
+data class SugarInt(val v:Int):SugarExpression{
+    override fun desugar(): Expression {
+        return EInt(v)
+    }
+}
+
+data class SugarAdd(val left:SugarExpression, val right:SugarExpression) : SugarExpression{
+    override fun desugar(): Expression {
+       return EAdd(left.desugar(), right.desugar())
+    }
+
+}
+
+data class SugarMul(val left:SugarExpression, val right:SugarExpression): SugarExpression{
+    override fun desugar(): Expression {
+       return EMul(left.desugar(), right.desugar())
+    }
+}
+#+end_src
+Now it is pretty much replicating what with had with the usual expression.
+Main difference might be that we don't evaluate anything here. We're just converting Sugared expression to our core expressions.
+
+*** Defining substraction
+Now we can extend our sugared languge with substraction function.
+#+begin_src kotlin
+
+// Take a closer look at this method
+data class SugarSub(val left:SugarExpression, val right: SugarExpression):SugarExpression{
+    override fun desugar(): Expression {
+       return EAdd(left.desugar(),  EMul(EInt(-1), right.desugar() ))
+    }
+}
+#+end_src
+
+Just have a look.
+We don't have substraction at our core language. But our customers might never know about it.
+For what they care, they can call *sub* function, and it would return the expected result to them.
+Isnt' that nice?
+
+But sharp-eyed reader might notice, that this implemantation would not work.
+Our parser returns Expressions, not SugarExpressions. We need to change that.
+And add few more unit tests to the mix.
+
+our parser looks like this now
+#+begin_src kotlin
+import org.yaml.snakeyaml.Yaml
+
+fun parse(input:String):SugarExpression{
+    val yaml = Yaml()
+    val script = yaml.load<Any>(input)
+    return convert(script)
+}
+fun convert(obj:Any):SugarExpression{
+   if(obj is Int){
+       return SugarInt(obj)
+   }
+    if(obj is ArrayList<*>){
+        val operation= obj[0]
+        if(operation == "add"){
+            val left = convert(obj[1])
+            val right = convert(obj[2])
+            return SugarAdd(left, right)
+        }
+        if(operation =="mul"){
+            val left = convert(obj[1])
+            val right = convert(obj[2])
+            return SugarMul(left, right)
+        }
+        if(operation =="sub"){
+            val left = convert(obj[1])
+            val right = convert(obj[2])
+            return SugarSub(left, right)
+        }
+    }
+    return SugarInt(-42)
+}
+#+end_src
+
+our tests should be changed in quite a few places. For example, parsing should be updated
+#+begin_src kotlin
+ @Test
+    fun testComplicatedMultiplicationUnparse(){
+        val yaml = "[mul, [mul, 3, 5], 42]"
+        assertEquals(
+            yaml,
+            SugarMul(SugarMul(SugarInt(3), SugarInt(5)), SugarInt(42)).desugar().unparse())
+        assertEquals(yaml, parse(yaml).desugar().unparse())
+    }
+    @Test
+    fun testMulAndAddUnparse(){
+        val yaml = "[mul, [add, 22, 11], 44]"
+        assertEquals(
+            yaml,
+            SugarMul(SugarAdd(SugarInt(22), SugarInt(11)), SugarInt(44)).desugar().unparse())
+        assertEquals(yaml, parse(yaml).desugar().unparse())
+    }
+#+end_src
+Do you see this beatuful pattern of parse -> desugar -> unparse
+
+Of course, evaluation tests should be changed as well
+#+begin_src kotlin
+ @Test
+    fun testComplicatedMultiplicationWithParsing() {
+        assertEquals(EInt(10), parse("[mul, 1, [mul, 5, 2]]").desugar().eval())
+        assertEquals(EInt(12), parse("[mul, 2, [add, 5, 1]]").desugar().eval())
+
+        assertEquals("10", parse("[mul, 1, [mul, 5, 2]]").desugar().eval().unparse())
+        assertEquals("12", parse("[mul, 2, [add, 5, 1]]").desugar().eval().unparse())
+    }
+#+end_src
+
+they follow the same pattern more or less. parse -> desugar -> eval -> unparse
+
+Now that our little refactoring is done, we are in a good shape to add test for our substraction.
+
+#+begin_src kotlin
+    @Test
+    fun testMulAndSubUnparse(){
+
+        val yaml = "[mul, [sub, 22, 11], 44]"
+        val desugared = "[mul, [add, [mul, -1, 22], 11], 44]"
+        assertEquals(
+            desugared,
+            SugarMul(SugarSub(SugarInt(22), SugarInt(11)), SugarInt(44)).desugar().unparse())
+        assertEquals(desugared, parse(yaml).desugar().unparse())
+    }
+#+end_src
+
+It is a good idea to test that evaluation of substraciton works as well.
+
+#+begin_src kotlin
+    @Test
+    fun testMulAndSubEvaluationWithParsing(){
+        val yaml = "[mul, [sub, 22, 11], 44]"
+        assertEquals("484", parse(yaml).desugar().eval().unparse())
+    }
+#+end_src
+
+We've just expanded our language with one more built-in function, wihout touching the core interpretation logic. And whast is even more interesting - the result of evaluation is correct.
+** Adding negation operation
+Now we can expand our primitive list by adding operation *neg* which should change the sight of the operation.
+
+Since we're working with the sugared operations, we can approach to this having this definition
+#+begin_src kotlin
+data class SugarNeg(val value:SugarExpression):SugarExpression{
+    override fun desugar(): Expression {
+       return EMul(EInt(-1), value.desugar())
+    }
+
+}
+#+end_src
+
+Or we might go other way around.
+
+#+begin_src kotlin
+data class SugarNeg2(val value:SugarExpression):SugarExpression{
+    override fun desugar(): Expression {
+       return SugarSub(SugarSub(value, value), value).desugar()
+    }
+
+}
+#+end_src
+
+Second one would not be the most efficient implementation, but would reduce our dependency on the core language. As you might see there's no core language structures besides *Expression* as return value.
+
+This is a great example of flexibility sugaring and desugaring brings to the table.
+
+If we implemented negation first, we might change our implementation of *sub* as well.
+#+begin_src kotlin
+data class SugarSub2(val left:SugarExpression, val right:SugarExpression):SugarExpression{
+    override fun desugar(): Expression {
+       return EAdd(SugarNeg(left).desugar(), right.desugar())
+    }
+}
+#+end_src
+
+As you can see, sugaring gives a lot of flexibility towards how our functions are implemented.
+
+Let's finish our negation by adding some tests and parsing bits.
+#+begin_src kotlin
+        if(operation =="neg"){
+            val value = convert(obj[1])
+            return SugarNeg(value)
+        }
+#+end_src
+
+and test cases for the parsing
+#+begin_src kotlin
+    @Test
+    fun testNegUnparse()
+    {
+        val yaml = "[neg, [mul, 2, 10]]"
+        val desugared = "[mul, -1, [mul, 2, 10]]"
+        assertEquals(desugared, SugarNeg(SugarMul(SugarInt(2), SugarInt(10))).desugar().unparse())
+        assertEquals(desugared, parse(yaml).desugar().unparse())
+    }
+#+end_src
+
+and for the evaluation as well
+#+begin_src kotlin
+    @Test
+    fun testNegationEvaluation(){
+        val yaml = "[neg, [mul, [sub, 22, 11], 44]]"
+        assertEquals("-484", parse(yaml).desugar().eval().unparse())
+    }
+#+end_src
+
+Remember, there's no such thing as too many tests, if they all make sense.
+
+
+We will get back to the sugaring concept later. It is very powerful idea worth revisiting.
+
+** Food for thought
+- You want to add *uminus* operation, which is operates exactly like negation, but has different representation in yaml syntax.
+  #+begin_src yaml
+[uminus, [mul, [sub, 22, 11]], 44]
+  #+end_src
+  Can you think of a way to make this evaluation possible touching only parsing?
+
+* Adding primitive functions to the language
+Now that we know how to add new functions as part of our sugaring process, we might ask ourselves :
+"Is it possible to define new functions without touching the host language"?
+Now every new defined function should have some correspondence in Kotlin.
+It would be nice to make it happen in yaml directly.
+
+Let's come up with the syntax for the function definition.
+It might have a lot of different flavors, but all of them should take care of few elements
+0. keyword for function definition
+1. function name
+2. function arguments
+3. body of the function
+
+We can start with the double function
+#+begin_src yaml
+fun   # keyword for the function definition
+ - [double, x]  # function name and arguments
+ - [add, x, x]  # body of the function
+#+end_src
+
+Of course short version would be preferrable for unit tests.
+#+begin_src yaml
+[fun, [double, x], [add, x, x]]
+#+end_src
+
+After defining *double* function, it is really tempting to introduce *quad* function
+
+#+begin_src yaml
+[fun, [quad, x], [double, [double, x]]]
+#+end_src
+functions should be able to call one another, otherwise what is the point in defining them?
+
+
+Functions without parameters should also be possible.
+
+#+begin_src yaml
+[fun, [const42], 42]
+#+end_src
+
+We will work with functions having single argument for now, and will deal with multiple arguments representation little bit later.
+
+** Dealing with function and argument names
+Now we have a good understanding how our function definitions would look like in yaml, let's think about how we gonna represent them in Kotlin.
+
+Before we start implementing anyting, we need to decide, how we can represent function and variables names.
+
+#+begin_src yaml
+[fun, [double, x], [add, x, x]]
+#+end_src
+
+When looking into this expression from yaml perspective `x` and `double` will be represented as strings.
+But semantically they should be different. They should represent some identifier, or a symbol if you wish.
+
+Therefore we need to expand our parser to support symbols.
+
+#+begin_src kotlin
+data class ESymbol(val value:String):Expression{
+    override fun eval(): Expression {
+        return this
+    }
+
+    override fun unparse(): String {
+        return value
+    }
+}
+
+#+end_src
+
+Here how our representation would look like
+#+begin_src kotlin
+data class EFunDef(val name:ESymbol, val argument:ESymbol, val body:Expression):Expression{
+    override fun eval(): Expression {
+        return this
+    }
+
+    override fun unparse(): String {
+        return "[fun, [${name.unparse()}, ${argument.unparse()}], ${body.unparse()}]"
+    }
+}
+
+#+end_src
+
+Function definition is evaluated to itself. It is just a delcaration of the function, it doesn't do anything at all.
+
+To make a function call, we need to have different structure. In some places it is called *function application*, i would use *function call*, since it is less academic and more commonly used
+#+begin_src kotlin
+data class EFunCall(val name:ESymbol, val argument:Expression):Expression{
+    override fun eval(): Expression {
+        TODO("Not yet implemented")
+    }
+
+    override fun unparse(): String {
+        return "[${name.unparse()}, ${argument.unparse()}]"
+    }
+
+}
+#+end_src
+
+We dont' know exactly how evaluation will work, but we can alreade expand our parser to support both function definitions and function calls.
+** Expanding parser for function definitions and calls
+When we are starting new implementation, and not totally sure what expected result is, we write tests.
+Parsing function definition looks like a good point.
+
+
+* Pros and cons of sugaring
+** performance hit
+** simplified runtime
+** Haskell core language
+** targeting degugaring
+** WebAssembly desugar
+** python desugar
+
 * Errors and strange things
 ** adding division
 ** what should happen if we divide by zero?
-* Adding variables to the mix
 ** It's all about environment
+* Defining variables for fun and profit
+While working with the expressions, it might be useful to have some variables.
+for example, ability to compute something like this:
+#+begin_src yaml
+[mul, x, 3]
+#+end_src
+To make it happen, we need to do some preparations.
+First of all, we need to understand what `x` means during parsing.
+Secondly, we should take the value attached to `x` from somewhere.
+
+If we try to use default yaml parser, it will say that `x` is represented as a string.
+And while we are not working with strings in our language at the moment, we definitely will be in the future.
+So during parsing we shall convert this string to some new type of the data.
+Something that can be treated as identifier or variable name. Let's call it a symbol
+
+#+begin_src kotlin
+data class ESymbol(val value:String):Expression{
+    override fun eval(): Expression {
+        return this
+    }
+
+    override fun unparse(): String {
+        return value
+    }
+}
+
+data class SugarSymbol(val name:String):SugarExpression{
+    override fun desugar(): Expression {
+       return ESymbol(name)
+    }
+
+}
+#+end_src
+Here's an example how it should work
+#+begin_src kotlin
+    @Test
+    fun testOperationWithSymbol(){
+        assertEquals(SugarAdd(SugarSymbol("x"), SugarInt(5)),
+                     parse("[add, x, 5]"))
+
+        assertEquals(SugarAdd(SugarSymbol("x"), SugarSymbol("y")),
+                     parse("[add, x, y]"))
+
+        assertEquals(SugarAdd(
+                         SugarAdd(SugarSymbol("x"), SugarSymbol("y")),
+                        SugarSymbol("z")),
+            parse("[add, [add, x, y], z]"))
+
+    }
+#+end_src
+Now we have a way to introduce variables to the expressions, but how are we planning to evaluate them?
+Which brings us to the next question
+** Where do our variables live?
+Variables should be defined somewhere. There should be a binding between symbol, and the value that symbol represents.
+
+The easiest way to make this mapping would be a dictionary. Or a hashmap if you like.
+
+#+begin_src kotlin
+data class Environment(val bindings:HashMap<ESymbol, Expression>){
+    fun addBinding( name:ESymbol,  value:Expression){
+        bindings[name] = value
+    }
+    fun isDefined(name:ESymbol): Boolean{
+        return bindings.containsKey(name)
+    }
+    fun get(name:ESymbol):Expression{
+        return bindings[name]!!
+    }
+}
+#+end_src
+As you can see we are assuming that we use core language as part of bindings.
+Since our evaluation process works on the core language, not the sugared one, this is very logical thing to do.
+
+Test cases are following:
+
+#+begin_src kotlin
+
+    @Test
+    fun isDefined() {
+        val env = Environment(hashMapOf())
+        assertFalse(env.isDefined(ESymbol("x")))
+        val env2 = Environment(hashMapOf( Pair(ESymbol("x"), EInt(5))))
+        assertTrue(env2.isDefined(ESymbol("x")))
+    }
+    @Test
+    fun addBinding() {
+        val env = Environment(hashMapOf())
+        env.addBinding(ESymbol("x"), EInt(5))
+        assertTrue(env.isDefined(ESymbol("x")))
+        assertEquals(EInt(5), env.bindings[ESymbol("x")])
+        assertEquals(EInt(5), env.get(ESymbol("x")))
+
+    }
+#+end_src
+
+What would happen if you try to get the variable that is not defined in the environment?
+You will get a runtime error of course. Error handling will be taken care of later. I promise :)
+Let us focus on well-behaving programs, where nothing strange happens.
+
+** Using environment in the evaluation
+We know how to define variable, and bind values to them.
+But it wont' be useful until we can attach this environment to our evaluation.
+#+begin_src yaml
+## somewhere out here we should have an environmet with defined 'x'
+[add, x, 5]
+#+end_src
+
+The only place where we can plug it in is our *eval* function.
+Time for the improvement
+
+Remeber our *Expression* interface from very long time ago?
+#+begin_src kotlin
+interface Expression{
+    fun eval():Expression
+    fun unparse():String
+}
+#+end_src
+
+We will tweak it a little bit
+
+#+begin_src kotlin
+interface Expression{
+    fun eval(env:Environment):Expression
+    fun unparse():String
+}
+#+end_src
+
+We're claiming here that evaluation cannot happen in vacuum. We need to take into account an environment we're in.
+Sometimes it might be an empty environment, somethimes it might be full of variable definitions.
+
+This is a small step for our interface, but a huge impact for our interpreter.
+It breaks all our evaluation implementations.
+It breaks all our evaluation tests.
+Good news is that we have tests, so we know what is broken.
+What else can be done rather than fixing it?
+
+** Fixing evaluation with environment
+Our first case is really simple one.
+#+begin_src kotlin
+data class EInt(val value:Int):Expression {
+    override fun eval(): Expression {
+        return this
+    }
+   ...
+}
+#+end_src
+
+How shall we interpret integer values if they live in some environment?
+Easy. Integers are always integers, so we can simply ignore the environment.
+
+#+begin_src kotlin
+data class EInt(val value:Int):Expression {
+    override fun eval(env:Environment): Expression {
+        return this
+    }
+
+    override fun unparse(): String {
+        return value.toString()
+    }
+}
+#+end_src
+
+Done.
+
+With addition and multiplication it would be not as straighforward.
+
+Let's stop and think for a moment.
+What we would like to happen when we have an expression defined within environment?
+#+begin_src yaml
+## env: {x = 5}
+[add, x, 10]
+#+end_src
+
+I would say it should be converted to
+#+begin_src yaml
+[add, 5, 10]
+#+end_src
+We don't care about the variable name. We care only about value attached to it. Its binding.
+
+Having variable name, variable definition and expression where this variable exists, we want to substitute variable with its value.
+
+#+begin_src kotlin
+fun substitute(variableName:ESymbol), env:Environment, expession:Expression): Expression
+#+end_src
+
+If you're thinking this function should be part of the *Expression* interface, in tend to agree with you.
+
+Our poor *Expression* is getting bigger and bigger, but it is a good things.
+
+#+begin_src kotlin
+interface Expression{
+    fun eval(env:Environment):Expression
+    fun substitute(symbol:ESymbol, env:Environment):Environment
+    fun unparse():String
+}
+#+end_src
+
+Now it breaks even more things in our code. But this is the price we need to pay.
+
+#+begin_src kotlin
+data class EInt(val value:Int):Expression {
+    override fun eval(env:Environment): Expression {
+        return this
+    }
+
+    override fun substitute(symbol: ESymbol, env: Environment): Expression {
+        return this
+    }
+
+    override fun unparse(): String {
+        return value.toString()
+    }
+}
+#+end_src
+
+for integers substituion is as easy as it gets.
+We are just ignoring all the symbols and environment.
+
+Let's see what we can do with *ESymbol*.
+#+begin_src kotlin
+data class ESymbol(val name:String):Expression{
+    ...
+    override fun substitute(symbol: ESymbol, env: Environment): Expression {
+        if(symbol.name == name){
+            return env.get(symbol)
+        }
+        return this
+    }
+   ...
+}
+#+end_src
+
+if we are trying to substitue symbol, and it is definted in the environment, we will return record from the variable.
+
+It might sound little bit confusing so here are few examples.
+
+#+begin_src yaml
+# env: {x = 5}
+x
+#+end_src
+
+should be transformed to
+
+#+begin_src yaml
+5
+#+end_src
+
+And if variable is not bound in the environment
+#+begin_src yaml
+# env: {x = 5}
+y
+#+end_src
+
+should remain untouched
+#+begin_src yaml
+y
+#+end_src
+
+
+Now that we've done with substitution for the symbols, addition and multiplication should be simple enough.
+
+#+begin_src kotlin
+data class EAdd(val a:Expression, val b:Expression): Expression {
+   ...
+    override fun substitute(symbol: ESymbol, env: Environment): Expression {
+        return EAdd(a.substitute(symbol, env), b.substitute(symbol,env))
+    }
+   ...
+}
+
+data class EMul(val a:Expression, val b:Expression): Expression {
+    ...
+    override fun substitute(symbol: ESymbol, env: Environment): Expression {
+        return EMul(a.substitute(symbol, env), b.substitute(symbol, env))
+    }
+   ...
+}
+
+#+end_src
+
+As usual, our tests would show us an example what we expect to happen, and how the variable substitution should look like.
+
+#+begin_src kotlin
+ @Test
+    fun testSubstitution(){
+        val env1 = Environment(hashMapOf(Pair(ESymbol("x"), EInt(5))))
+        assertEquals(EInt(5), ESymbol("x").substitute(ESymbol("x"), env1))
+        assertEquals(ESymbol("y"), ESymbol("y").substitute(ESymbol("x"), env1))
+
+        assertEquals("[add, 5, 5]",
+            parse("[add, x, x]").desugar()
+                .substitute(ESymbol("x"), env1).unparse())
+
+        assertEquals("[mul, 5, 5]",
+            parse("[mul, x, x]").desugar()
+                .substitute(ESymbol("x"), env1).unparse())
+
+        assertEquals("[add, [mul, 5, 5], 5]",
+            parse("[add, [mul, x, x], x]").desugar()
+                .substitute(ESymbol("x"), env1).unparse())
+
+
+        val env2 = Environment(hashMapOf(Pair(ESymbol("x"), EInt(5)),
+            Pair(ESymbol("y"), EInt(7))))
+
+        assertEquals("[add, [mul, 5, y], 5]",
+            parse("[add, [mul, x, y], x]").desugar()
+                .substitute(ESymbol("x"), env2).unparse())
+
+
+        assertEquals("[add, [mul, 5, 7], 5]",
+            parse("[add, [mul, x, y], x]").desugar()
+                .substitute(ESymbol("x"), env2)
+                .substitute(ESymbol("y"), env2)
+                .unparse())
+
+        val complexEnv = Environment(hashMapOf(Pair(ESymbol("x"),
+            parse("[mul, 11, [add, [add, 3, 4], 11]]").desugar())))
+
+        assertEquals("[add, [mul, 11, [add, [add, 3, 4], 11]], [mul, 11, [add, [add, 3, 4], 11]]]",
+            parse("[add, x, x]").desugar()
+                .substitute(ESymbol("x"), complexEnv)
+                .unparse()
+            )
+    }
+#+end_src
+As you can see, substitutions can be as complex as we want them to be.
+Now it is good time to do something about evaluation.
+** Mutalbe vs immutable variables
+* Adding variables to the mix
+**   should variables have a type?
 ** adding environment to our expressions
 ** if you change the environment, expression changes as well.
-* Defining variables for fun and profit
-**   Where do our variables live?
-** Mutalbe vs immutable variables
-**   should variables have a type?
-* Adding primitive functions to the language
-**   powers, exponents, mods and so on
 ** adding string support to the language
+
+**   powers, exponents, mods and so on
 * Evaluating parameters of the funciton. Order matters
 ** lazy vs eager evaluation. Pros, cons, implementation
 * Adding functions to the language.
