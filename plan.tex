@@ -1,0 +1,1672 @@
+% Created 2022-09-30 Fri 23:07
+% Intended LaTeX compiler: pdflatex
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{graphicx}
+\usepackage{longtable}
+\usepackage{wrapfig}
+\usepackage{rotating}
+\usepackage[normalem]{ulem}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{capt-of}
+\usepackage{hyperref}
+\usepackage{minted}
+\author{Oleg Taykalo}
+\date{\today}
+\title{Interpretation for lazy and curious}
+\hypersetup{
+ pdfauthor={Oleg Taykalo},
+ pdftitle={Interpretation for lazy and curious},
+ pdfkeywords={},
+ pdfsubject={},
+ pdfcreator={Emacs 28.2 (Org mode 9.6)}, 
+ pdflang={English}}
+\begin{document}
+
+\maketitle
+\tableofcontents
+
+\section{Interpretation. part 1}
+\label{sec:org5bd842f}
+The core functionality of interpreters might be distilled to two steps.
+\begin{enumerate}
+\item Parse source code to some internal representation
+\item Evaluate the internal representation, so it will be reduced to the result we need.
+\end{enumerate}
+Here I will do my best to skip as much as possible of the first one.
+You dont' need to know quantum physics to be able to swim.
+
+\subsection{Can you do it?}
+\label{sec:orgba3d2f8}
+When talking about interpretation  most of the people start thinking about complex things.
+register allocation, memory management, grammars and DFAs.
+I will try to keep it simple.
+As simple as possible without loosing core of the essence.
+Let's assume you have a yaml file
+\begin{minted}[]{yaml}
+bold
+- some text
+- and more text
+\end{minted}
+
+How hard would that be to transform this yaml to the html?
+\begin{minted}[]{html}
+<b>
+  <p>some text</p>
+  <p> and more text></p>
+</b>
+\end{minted}
+
+My guess would be that majority of the developers won't have troubles with doing so.
+We're just transforming on tree structure to another tree structure.
+
+And this is the essense of interpretation. We're taking one tree structure and converting it to another tree structure.
+If you can convert yaml to html, you're good to go.
+\section{Parsing and other friends}
+\label{sec:org2f4bfbf}
+Most of the compilers and interpreters books start with parsing.
+You neeed to investigate what DFA is, how it is different from NFA, and why regular expressions are not always the best choice.
+Then you will follow on grammars. Context free grammars, left recursion elimination and so on.
+After that you will be presented with tools that will make your life easier. Yacc, Bison, monadic parsers.
+This usually happens 200-300 pages into the book. And while this is very important part of the story, I would like to argue this can be postponed to the point where you actually know what you are doing.
+Therefore approach in this book will take us as fast as possible to the actual interpretation, skipping all unnecessary steps if possible.
+To begin with we will start with arithmetic expressions.
+\subsection{The simplest expressions you can think of}
+\label{sec:orgb6f7570}
+Implementing anything on JVM starts with interfaces.
+let's us to the same and implement your first Expression
+\begin{minted}[]{kotlin}
+interface Expression
+\end{minted}
+
+It's not much, but we will improve it really fast. Just stay tuned.
+\subsubsection{Integer values}
+\label{sec:org2761bfa}
+It is hard to do any computations when you don't have numbers.
+\begin{minted}[]{kotlin}
+data class EInt(val v:Int):Expression
+\end{minted}
+For now integers are more than enough for us to have. Adding boolean and float values will follow.
+\subsubsection{Addition}
+\label{sec:org7d6dc90}
+Adding additional addition to the mix would not be a problem
+\begin{minted}[]{kotlin}
+data class EAdd(val a:EInt, val b:EInt): Expression
+
+\end{minted}
+\subsubsection{Multiplication}
+\label{sec:org1b910c7}
+The same goes for the multiplication
+\begin{minted}[]{kotlin}
+data class EMul(val a:EInt, val b:EInt): Expression
+\end{minted}
+\subsection{What else can we add to the expressions}
+\label{sec:org65b785e}
+\subsection{Representing expressions in a code}
+\label{sec:orgc87280c}
+Now we have all the required components to actually start calulating.
+How would expression
+\begin{minted}[]{kotlin}
+2+2
+\end{minted}
+would look in our data class representation?
+\begin{minted}[]{kotlin}
+EAdd(2,2)
+\end{minted}
+Multiplication would not be that different
+\begin{minted}[]{kotlin}
+5*5
+\end{minted}
+\begin{minted}[]{kotlin}
+EMul(5, 5)
+\end{minted}
+And if we want to express something more complex, we will just nest them
+\begin{minted}[]{kotlin}
+(2+2)*5*5
+\end{minted}
+\begin{minted}[]{kotlin}
+EMul(5, EMul(5, EAdd(2 , 2)))
+\end{minted}
+
+\section{Evaluating expressions for fun and profit}
+\label{sec:org54a823f}
+\subsection{Evaluating integers. As simple as it gets}
+\label{sec:orgb08d178}
+Having expresisons is nice, but why do we need them if we can't calculate them on the fly?
+as TDD teaches us, you whould start from the test first.
+So be it.
+You never can be too slow when doing unit tests. Good coverage for the basics will let you know details of your code workings. As well will save you hours of debugging later on.
+
+\begin{minted}[]{kotlin}
+    @Test
+    fun testSimpleInteger(){
+        assertEquals(EInt(5), eval(EInt(5)))
+        assertEquals(EInt(-5), eval(EInt(-5)))
+        assertEquals(EInt(0), eval(EInt(0)))
+    }
+\end{minted}
+
+What would be the easiest implementation of \textbf{eval} to make it run?
+I came up with this one.
+\begin{minted}[]{kotlin}
+
+fun eval( e:Expression): Expression{
+    return e;
+}
+\end{minted}
+Probably would not require a lot of effort to understand what is happening here.
+and it also makes our tests green.
+
+
+\subsection{Evaluating addition}
+\label{sec:orgf16d44e}
+Now we are facing our first real challenge.
+How can we evaluate addition?
+
+As usual, let us start with the unit tests, so we don't have a suprises later on.
+\begin{minted}[]{kotlin}
+ @Test
+    fun testSimpleAddition(){
+        assertEquals(EInt(5), eval(EAdd(EInt(5), EInt(0))))
+        assertEquals(EInt(5), eval(EAdd(EInt(0), EInt(5))))
+        assertEquals(EInt(10), eval(EAdd(EInt(7), EInt(3))))
+        assertEquals(EInt(7), eval(EAdd(EInt(-3), EInt(10))))
+        assertEquals(EInt(6), eval(EAdd(EInt(10), EInt(-4))))
+    }
+\end{minted}
+
+obviously if we try to run them now, we would have an error
+
+\begin{minted}[]{kotlin}
+Expected :EInt(v=5)
+Actual   :EAdd(a=EInt(v=5), b=EInt(v=0))
+\end{minted}
+By the way - this is one of the reasons Kotlin is a nice language for these kind of exercises.
+You don't need to write a lot of boilerplates for the \textbf{data class}, string representation looks reasonalbe, and saves some mental space for more important things.
+
+We have a red test. What is the simplest way to make it green?
+\begin{minted}[]{kotlin}
+
+fun eval( e:Expression): Expression{
+    if(e is EAdd){
+        return EInt( e.a.v + e.b.v)
+    }
+    return e
+}
+\end{minted}
+
+would this be enough?
+
+Oh wow, tests are green now. But i am not big fan of 'e.a.v' looks very obscure
+Green test allows us to do refactoring bit.
+
+\begin{minted}[]{kotlin}
+data class EInt(val value:Int):Expression
+
+fun eval( expression:Expression): Expression{
+    if(expression is EAdd){
+        return EInt(expression.a.value + expression.b.value)
+    }
+    return expression
+}
+\end{minted}
+
+Are we done with the addition?
+
+What about more complex example?
+\begin{minted}[]{kotlin}
+1 + 2 + 3 => 6
+assertEquals(EInt(6), eval( EAdd(EInt(1), EAdd( EInt(2),EInt(3)) )))
+\end{minted}
+
+And our compiler complains.
+\begin{verbatim}
+Type mismatch: inferred type is EAdd but EInt was expected
+\end{verbatim}
+
+Why is that? Oh yes. in our definition we are expecitng that \textbf{EAdd} expects integers as a parameters.
+\begin{minted}[]{kotlin}
+data class EAdd(val a:EInt, val b:EInt): Expression
+\end{minted}
+But now we are trying to pass \textbf{EAdd} as second paramter. Of course we should have an error here.
+
+As usual with TDD approach we fixe it with the simplest way possible
+\begin{minted}[]{kotlin}
+data class EAdd(val a:Expression, val b:Expression): Expression
+\end{minted}
+
+Hopefully it will solve our issue.
+
+But apparently it would not.
+
+We get yet another nasty error in our \textbf{eval} function
+
+\begin{minted}[]{kotlin}
+fun eval( expression:Expression): Expression{
+    if(expression is EAdd){
+        return EInt(expression.a.value + expression.b.value)
+        //                         ^
+        //                         |
+        // unresolved reference: value
+    }
+    return expression
+}
+\end{minted}
+
+Any ideas?
+Sure. \textbf{value} is a field of and integer, and now EAdd works with generic expressions, which might not have a value.
+So we need to come up with a way of converting addition result to values.
+
+\begin{minted}[]{kotlin}
+fun eval( expression:Expression): Expression{
+    if(expression is EAdd){
+        val left: EInt = eval(expression.a) as EInt
+        val right: EInt  = eval(expression.b) as EInt
+        return EInt(left.value + right.value)
+    }
+    return expression
+}
+\end{minted}
+This expression is worth to take a closer look.
+To execute and addition, we need to be sure that both our parameters are integers.
+At the same time when we call \textbf{eval} we would get the \textbf{Expression} as a result.
+Therefore we need to convert it to the class we want. In our case that would be \textbf{EInt}.
+
+Of course this little piece of code might rise some questions.
+What happens if during \textbf{eval} will return something different from \textbf{EInt} would not that break everything?
+What will happen if during \textbf{eval} some error will be raised?
+These are very good questions. and we will get to them later. For now let us keep our focus on general picture.
+
+\subsection{Evaluating multiplication}
+\label{sec:org98dad81}
+After spending so much time on evaluating addition, expanding our expressions to support multiplication is straighforward.
+But first - tests.
+\begin{minted}[]{kotlin}
+    @Test
+    fun testSimpleMultiplication()
+    {
+        assertEquals(EInt(0), eval(EMul(EInt(0), EInt(42))))
+        assertEquals(EInt(0), eval(EMul(EInt(42), EInt(0))))
+        assertEquals(EInt(42), eval(EMul(EInt(1), EInt(42))))
+        assertEquals(EInt(42), eval(EMul(EInt(42), EInt(1))))
+        assertEquals(EInt(4), eval(EMul(EInt(2), EInt(2))))
+    }
+\end{minted}
+
+and implementation
+\begin{minted}[]{kotlin}
+fun eval( expression:Expression): Expression{
+    if(expression is EAdd){
+        val left: EInt = eval(expression.a) as EInt
+        val right: EInt  = eval(expression.b) as EInt
+        return EInt(left.value + right.value)
+    }
+    if(expression is EMul){
+        val left: EInt = eval(expression.a) as EInt
+        val right: EInt  = eval(expression.b) as EInt
+        return EInt(left.value * right.value)
+    }
+    return expression
+}
+\end{minted}
+
+As you can see, the implementation is almost identical. The only difference we have іs the actual operation.
+
+Let's add few more tests to make sure it works if we mix addition and multiplication
+\begin{minted}[]{kotlin}
+    @Test
+    fun testComplicatedMultiplication() {
+        assertEquals(EInt(10), eval(EMul(EMul(EInt(1), EInt(5)), EInt(2))))
+        assertEquals(EInt(12), eval(EMul(EAdd(EInt(1), EInt(5)), EInt(2))))
+    }
+
+\end{minted}
+All the tests are green. Nice.
+In less than 20 lines of code we have working caclulator that can add and multiply arbitrary numbers.
+\begin{minted}[]{kotlin}
+interface Expression
+data class EInt(val value:Int):Expression
+data class EMul(val a:Expression, val b:Expression): Expression
+data class EAdd(val a:Expression, val b:Expression): Expression
+
+fun eval( expression:Expression): Expression{
+    if(expression is EAdd){
+        val left: EInt = eval(expression.a) as EInt
+        val right: EInt  = eval(expression.b) as EInt
+        return EInt(left.value + right.value)
+    }
+    if(expression is EMul){
+        val left: EInt = eval(expression.a) as EInt
+        val right: EInt  = eval(expression.b) as EInt
+        return EInt(left.value * right.value)
+    }
+    return expression
+}
+
+\end{minted}
+
+
+\subsection{Sidenotes}
+\label{sec:org0b09f47}
+\subsubsection{Moving evaluation into each expression}
+\label{sec:org4aab58c}
+At this point all our evaluation is sitting within one \textbf{eval} function.
+If we gonna add more expressions to the interpreter, amount of \textbf{if} statements will grow.
+This can be avoided by extracting specific parts of the code, and moving them to expressions.
+The result would look like this:
+\begin{minted}[]{kotlin}
+interface Expression{
+    fun eval():Expression
+}
+data class EInt(val value:Int):Expression {
+    override fun eval(): Expression {
+        return this
+    }
+}
+
+data class EMul(val a:Expression, val b:Expression): Expression {
+    override fun eval(): Expression {
+        val left = a.eval() as EInt
+        val right = b.eval() as EInt
+        return EInt(left.value * right.value)
+    }
+}
+
+data class EAdd(val a:Expression, val b:Expression): Expression {
+    override fun eval(): Expression {
+        val left = a.eval() as EInt
+        val right = b.eval() as EInt
+        return EInt(left.value + right.value)
+
+    }
+}
+\end{minted}
+
+It would require to change the test implementation as well.
+
+\begin{minted}[]{kotlin}
+ assertEquals(EInt(12), (EMul(EAdd(EInt(1), EInt(5)), EInt(2))).eval())
+
+\end{minted}
+\subsubsection{Simple optimisations}
+\label{sec:org04a5ec4}
+You might agree that multiplying anything by zero would not help a lot.
+We can include it in our evaluation of \textbf{EMul}
+\begin{minted}[]{kotlin}
+data class EMul(val a:Expression, val b:Expression): Expression {
+    override fun eval(): Expression {
+        val left = a.eval() as EInt
+        if (left.value == 0){
+            return EInt(0)
+        }
+        val right = b.eval() as EInt
+        return EInt(left.value * right.value)
+    }
+}
+\end{minted}
+
+And if you agree that integers are immutable values, we can avoid creating new copy of the EInt every time during the evaluation
+
+\begin{minted}[]{kotlin}
+val zeroInt = EInt(0)
+
+data class EMul(val a:Expression, val b:Expression): Expression {
+    override fun eval(): Expression {
+        val left = a.eval() as EInt
+        if (left.value == 0){
+            return zeroInt
+        }
+        val right = b.eval() as EInt
+        return EInt(left.value * right.value)
+    }
+}
+\end{minted}
+\section{The simplest parser you can think of}
+\label{sec:orga39beb7}
+To make the whole parsing easy, let us reiterate what problem are we trying to solve.
+We need to take a string, and convert it to the expression.
+It can be expressed in a test.
+\begin{minted}[]{kotlin}
+    @Test()
+    fun testSimpleInt(){
+        assertEquals(EInt(42), parse("42"))
+    }
+\end{minted}
+
+As you might remember - we are lazy. So we will do something that would allow us to simplify things.
+To use a library and a format a lot of people using now.
+The most popular programming language of the century.
+YAML.
+
+\subsection{Parsing integers with yaml}
+\label{sec:org836065f}
+To make it work we would need to add dependency to the great \textbf{snakeyaml} library
+\begin{minted}[]{kotlin}
+dependencies {
+    // https://mvnrepository.com/artifact/org.yaml/snakeyaml
+    implementation("org.yaml:snakeyaml:1.32")
+
+    testImplementation(kotlin("test"))
+    testImplementation("org.junit.jupiter:junit-jupiter:5.9.0")
+}
+\end{minted}
+
+having such a useful tool makes our lives easy.
+
+\begin{minted}[]{kotlin}
+import org.yaml.snakeyaml.Yaml
+
+fun parse(input:String):Expression{
+    val yaml = Yaml()
+    val script = yaml.load<Any>(input)
+    return EInt(script as Int)
+}
+\end{minted}
+
+We cannot parse anything but integers now, but at least our tests are green. Isn't that great?
+\subsection{Expanding yaml expressions to support addition}
+\label{sec:org4032bb3}
+If you remember, our goal is to convert from strings to expressions as easy as possible.
+To make it happen, the language we would use should be very similar to the expressions we have.
+
+\begin{minted}[]{kotlin}
+EAdd(EInt(3), EInt(5))
+\end{minted}
+
+might be represented in yaml as
+\begin{minted}[]{yaml}
+add
+  - 1
+  - 2
+\end{minted}
+
+And more complex expresison
+\begin{minted}[]{kotlin}
+EMul(EAdd(EInt(3), EInt(5)), EInt(10))
+\end{minted}
+Will have a form
+\begin{minted}[]{yaml}
+mul
+  - 10
+  - add
+    - 1
+    - 2
+\end{minted}
+
+Obviously this is good enough if we want to use it as part of yaml files.
+But when you adding such an expression to the unit test, you would suffer.
+Suffering should be optional, and to removing it we will utilise little known feature of Yaml, called \url{https://yaml.org/spec/1.2.2/\#chapter-7-flow-style-productions}
+
+\begin{minted}[]{kotlin}
+EAdd(EInt(3), EInt(5))
+\end{minted}
+becomes
+\begin{minted}[]{yaml}
+[add, 3, 5]
+\end{minted}
+
+and
+\begin{minted}[]{kotlin}
+EMul(EInt(10), EAdd(EInt(1), EInt(2)))
+\end{minted}
+is represented as
+
+\begin{minted}[]{yaml}
+[mul, 10, [add, 1, 2]]
+\end{minted}
+I kinda like it. It is shorter, and represents our internal structure pretty much
+\subsection{parsing yaml with predefined expressions}
+\label{sec:org2b8ea83}
+Test goes first
+\begin{minted}[]{kotlin}
+   @Test()
+    fun testSimpleAdd(){
+        assertEquals(EAdd(EInt(3), EInt(5)), parse("[add, 3, 5]"))
+    }
+\end{minted}
+
+When \textbf{snakeyaml} parses flow-style expressions, it returns ArrayList.
+So all we need to do is convert ArrayList to expression we want
+
+\begin{minted}[]{kotlin}
+fun parse(input:String):Expression{
+    val yaml = Yaml()
+    val script = yaml.load<Any>(input)
+    return convert(script)
+}
+fun convert(obj:Any):Expression{
+   if(obj is Int){// if yaml loaded an integer -convert it to EInt
+       return EInt(obj)
+   }
+    if(obj is ArrayList<*>){ // if we have arrayList
+        val operation= obj[0] // we assume initial element is the name of operation
+        if(operation == "add"){
+            val left = convert(obj[1]) // converting first parameter of the operation
+            val right = convert(obj[2]) // converting second parameter of the operation
+            return EAdd(left, right)
+        }
+    }
+    return EInt(-42) // since we don't have errors now, return something strange
+}
+\end{minted}
+
+Essentially what we are doing here is very similar to the eval fucntion we defined previously.
+Eval takes Expression as input and returns Integer values.
+parse takes a string as an input and returns Expression.
+Even conversion of addition look very similar. Pay attention to the recursive call in convert.
+
+Of course if our source code would not have the structure we want, we will get very nasty errors.
+But as was said previousy - let us focus on successful flow first, taking care of corner cases later.
+
+Surprisingly enough, this implementation makes our test green.
+Let's see if we try to parse more complicated expression.
+\begin{minted}[]{kotlin}
+    @Test
+    fun testComplicatedAdd(){
+        assertEquals(
+            EAdd(EAdd(EInt(3), EInt(5)), EInt(42)),
+            parse("[add, [add, 3,5], 42]"))
+    }
+
+\end{minted}
+
+Green as well. Nice work!
+\subsection{Adding multiplication to the mix}
+\label{sec:org4362286}
+Now we know what to expect, so we will add both tests from the beginning
+\begin{minted}[]{kotlin}
+    @Test
+    fun testSimpleMultiplication(){
+        assertEquals(EMul(EInt(11), EInt(33)), parse("[mul, 11, 33]"))
+    }
+    @Test
+    fun testComplicatedMultiplication(){
+        assertEquals(
+            EMul(EMul(EInt(3), EInt(5)), EInt(42)),
+            parse("[mul, [mul, 3,5], 42]"))
+    }
+\end{minted}
+
+Implementation of parser is really simple. Nothing new under the sun.
+\begin{minted}[]{kotlin}
+fun convert(obj:Any):Expression{
+    ...
+    if(obj is ArrayList<*>){
+        ...
+        if(operation =="mul"){
+            val left = convert(obj[1])
+            val right = convert(obj[2])
+            return EMul(left, right)
+        }
+\end{minted}
+
+We have a parser for addition, and we have a parser for multiplication.
+Let's see how well they are working together.
+\begin{minted}[]{kotlin}
+    @Test
+    fun testMulAndAdd(){
+         assertEquals(
+            EMul(EAdd(EInt(22), EInt(11)), EInt(44)),
+            parse("[mul, [add, 22, 11], 44]"))
+    }
+\end{minted}
+
+Tests are green. Feels great, isn't it?
+
+\subsection{Evaluating parsed expressions}
+\label{sec:orgff6ac05}
+Now we have both parth of the story. We can take a string and convert it to an expression.
+We can take an expression and evaluate it.
+Let us add some more tests would confirm this fact.
+\begin{minted}[]{kotlin}
+    @Test
+    fun testComplicatedExpressionWithParsing() {
+        assertEquals(EInt(10), (EMul(EMul(EInt(1), EInt(5)), EInt(2))).eval())
+        assertEquals(EInt(10), parse("[mul, [mul, 1, 5], 2]").eval())
+        assertEquals(EInt(12), (EMul(EAdd(EInt(1), EInt(5)), EInt(2))).eval())
+        assertEquals(EInt(12), parse("[mul, [add, 1, 5], 2]").eval())
+    }
+\end{minted}
+
+I specifically put original version here, so it is easy to compare complexity of expressions and amount of brackets.
+
+\subsection{One more touch}
+\label{sec:org69e5130}
+If you look closely on the previous test, you might wondered, why did we use \textbf{EInt(10)} instead of just \textbf{10}? How hard would that be to make it happen?
+
+Well, let's add one more operation, and call it \textbf{unparse}. It will take an expression and convert it to our yaml format. in such a way we will have the whole circle of life
+
+Let us extend our expression interface with \textbf{unparse} method
+\begin{minted}[]{kotlin}
+interface Expression{
+    fun eval():Expression
+    fun unparse():String
+}
+\end{minted}
+
+And expand our test cases for the parsing.
+Make sure that unparsing parsed expression should give the same result
+\begin{minted}[]{kotlin}
+
+  @Test
+    fun testSimpleIntUnparse(){
+        assertEquals("42",EInt(42).unparse())
+        assertEquals("42", parse("42").unparse())
+    }
+
+    @Test
+    fun testSimpleAddUnparse(){
+        val yaml = "[add, 3, 5]"
+        assertEquals(yaml, EAdd(EInt(3), EInt(5)).unparse())
+        assertEquals(yaml, parse(yaml).unparse())
+    }
+    @Test
+    fun testComplicatedAddUnparse(){
+        val yaml = "[add, [add, 3, 5], 42]"
+        assertEquals(
+            yaml,
+            EAdd(EAdd(EInt(3), EInt(5)), EInt(42)).unparse())
+        assertEquals(yaml, parse(yaml).unparse())
+    }
+    @Test
+    fun testSimpleMultiplicationUnparse(){
+        val yaml = "[mul, 11, 33]"
+
+        assertEquals(yaml, EMul(EInt(11), EInt(33)).unparse())
+        assertEquals(yaml, parse(yaml).unparse())
+    }
+    @Test
+    fun testComplicatedMultiplicationUnparse(){
+        val yaml = "[mul, [mul, 3, 5], 42]"
+        assertEquals(
+            yaml,
+            EMul(EMul(EInt(3), EInt(5)), EInt(42)).unparse())
+        assertEquals(yaml, parse(yaml).unparse())
+    }
+    @Test
+    fun testMulAndAddUnparse(){
+        val yaml = "[mul, [add, 22, 11], 44]"
+        assertEquals(
+            yaml,
+            EMul(EAdd(EInt(22), EInt(11)), EInt(44)).unparse())
+        assertEquals(yaml, parse(yaml).unparse())
+    }
+
+\end{minted}
+
+Remember, the more tests you have, the less corner cases you should worry about.
+
+implementation is straightforward.
+
+\begin{minted}[]{kotlin}
+data class EInt(val value:Int):Expression {
+    ...
+    override fun unparse(): String {
+        return value.toString()
+    }
+}
+
+data class EMul(val a:Expression, val b:Expression): Expression {
+    ...
+    override fun unparse(): String {
+        return "[mul, ${a.unparse()}, ${b.unparse()}]".format()
+    }
+}
+
+data class EAdd(val a:Expression, val b:Expression): Expression {
+    ...
+    override fun unparse(): String {
+        return "[add, ${a.unparse()}, ${b.unparse()}]"
+    }
+}
+\end{minted}
+As expected, tests are passing.
+\subsection{Evaluating parsed expressions}
+\label{sec:orgf08f304}
+We took some detour to make the basics work. Now we know how to read yaml, interpret the contents of the yaml using intermediate representation, and save results back to the yaml. Which in turn can be read, interpreted and saved to yaml.
+
+But what is missing is some tests that confirm that our assumptions are correct.
+\begin{minted}[]{kotlin}
+ @Test
+    fun testSimpleIntegerWithParsing() {
+        assertEquals(EInt(5), parse("5").eval())
+        assertEquals(EInt(-5),parse("-5").eval())
+        assertEquals(EInt(0), parse("0").eval())
+    }
+
+    @Test
+    fun testSimpleAdditionWithParsing() {
+        assertEquals(EInt(5), parse("[add, 5, 0]").eval())
+        assertEquals(EInt(5), parse("[add, 0, 5]").eval())
+        assertEquals(EInt(10),parse("[add, 7, 3]").eval())
+        assertEquals(EInt(7), parse("[add, -3, 10]").eval())
+        assertEquals(EInt(6), parse("[add, 10, -4]").eval())
+    }
+
+    @Test
+    fun testComplexAdditionWithParsing() {
+        assertEquals(EInt(6),  parse("[add, 1, [add, 2,3]]").eval())
+    }
+
+    @Test
+    fun testSimpleMultiplicationWithParsing() {
+        assertEquals(EInt(0), parse("[mul, 0, 42]").eval())
+        assertEquals(EInt(0), parse("[mul, 42, 0]").eval())
+        assertEquals(EInt(42),parse("[mul, 1, 42]").eval())
+        assertEquals(EInt(42), parse("[mul, 42, 1]").eval())
+        assertEquals(EInt(4), parse("[mul, 2, 2]").eval())
+    }
+
+    @Test
+    fun testComplicatedMultiplicationWithParsing() {
+        assertEquals(EInt(10), parse("[mul, 1, [mul, 5, 2]]").eval())
+        assertEquals(EInt(12), parse("[mul, 2, [add, 5, 1]]").eval())
+
+        assertEquals("10", parse("[mul, 1, [mul, 5, 2]]").eval().unparse())
+        assertEquals("12", parse("[mul, 2, [add, 5, 1]]").eval().unparse())
+    }
+\end{minted}
+
+In the last test you can see all the parts working together.
+And as you might have guessed, our tests are passing.
+\subsection{Food for thought}
+\label{sec:orge600e26}
+Parsing plays important role in the whole evaluation process. While we simplified it to the minimum, we still can improve it.
+
+For example - we have duplication while parsing addition and multiplication operations.
+One way to make it better would be to add support to binary arithmetical operations.
+But that would come at the cost of complicating our abstract syntax tree. As usual in the computer science - you cannot remove the complexity. You can just move it in some other place.
+
+Here's another puzzle for you. What should this expression be parsed into?
+\begin{minted}[]{kotlin}
+[mul, 0, [add, 11, 42]]
+\end{minted}
+
+One might argue it is obvious - result is
+\begin{minted}[]{kotlin}
+EMul(EInt(0), EAdd(EInt(11), EInt(42)))
+\end{minted}
+
+But equally good option is
+\begin{minted}[]{kotlin}
+EInt(0)
+\end{minted}
+
+Since we know that multiplication by zero would give us zero in the end, why bother creating complex expression?
+And as in previous example - we are simplifiying evaluation by complicating parsing.
+You cannot remove the complexity. You can just push it somewhere else.
+\subsection{Reflecting and Wrapping up}
+\label{sec:org123ef33}
+It took some time and turns to get to this point.
+A lot of text, and a lot of explanations. But try to look at it from the different perspective.
+our parser is 26 lines long, and our interpreter is just 42 lines long.
+In less than 100 lines we have fully functional interpreter, that can deal with complex math expressions.
+And load and save expressions to yaml.
+
+Let's look at our code in its full glory.
+\begin{minted}[]{kotlin}
+// Domain.kt
+interface Expression{
+    fun eval():Expression
+    fun unparse():String
+}
+data class EInt(val value:Int):Expression {
+    override fun eval(): Expression {
+        return this
+    }
+
+    override fun unparse(): String {
+        return value.toString()
+    }
+}
+
+val zeroInt = EInt(0)
+data class EMul(val a:Expression, val b:Expression): Expression {
+    override fun eval(): Expression {
+        val left = a.eval() as EInt
+        if (left.value == 0){
+            return zeroInt
+        }
+        val right = b.eval() as EInt
+        return EInt(left.value * right.value)
+    }
+
+    override fun unparse(): String {
+        return "[mul, ${a.unparse()}, ${b.unparse()}]".format()
+    }
+}
+
+data class EAdd(val a:Expression, val b:Expression): Expression {
+    override fun eval(): Expression {
+        val left = a.eval() as EInt
+        val right = b.eval() as EInt
+        return EInt(left.value + right.value)
+
+    }
+
+    override fun unparse(): String {
+        return "[add, ${a.unparse()}, ${b.unparse()}]"
+    }
+}
+// Parser.kt
+import org.yaml.snakeyaml.Yaml
+
+fun parse(input:String):Expression{
+    val yaml = Yaml()
+    val script = yaml.load<Any>(input)
+    return convert(script)
+}
+fun convert(obj:Any):Expression{
+   if(obj is Int){
+       return EInt(obj)
+   }
+    if(obj is ArrayList<*>){
+        val operation= obj[0]
+        if(operation == "add"){
+            val left = convert(obj[1])
+            val right = convert(obj[2])
+            return EAdd(left, right)
+        }
+        if(operation =="mul"){
+            val left = convert(obj[1])
+            val right = convert(obj[2])
+            return EMul(left, right)
+        }
+    }
+    return EInt(-42)
+}
+\end{minted}
+\section{Core language, host language and a lot of sugar}
+\label{sec:orgc19f94c}
+When implementing and interpreter you want to have ability to define new type of capabilites.
+At the same time you don't want to spend too much time refactoring base implementation.
+Changing Ast and tests for it, implementations, is very time consuming process.
+\subsection{core, host, sugared}
+\label{sec:org040c614}
+This can be avoided by introducing new level of abstration. As you know, you can solve every problem in IT by adding an additional level of abstraction.
+Let's call our arimetic language we have the core language. It is core of our interpreter, and we don't want to expose its internal for the customers.
+We would like to keep it as small as possible, so all refatoring and optimisations would have smaller blast radius.
+As for ease of use we can create new expressions, which we would call sugared expressions.
+They will be used as our interface, and should be converted to the core language to be interpreted
+\subsection{Adding sugar}
+\label{sec:orge90e110}
+Let's say we want to add new operation to the mix \textbf{sub}, which stands for the substraction.
+how would it fit to our idea of sugared language?
+\begin{minted}[]{kotlin}
+interface SugarExpression{
+    fun desugar():Expression
+}
+
+data class SugarInt(val v:Int):SugarExpression{
+    override fun desugar(): Expression {
+        return EInt(v)
+    }
+}
+
+data class SugarAdd(val left:SugarExpression, val right:SugarExpression) : SugarExpression{
+    override fun desugar(): Expression {
+       return EAdd(left.desugar(), right.desugar())
+    }
+
+}
+
+data class SugarMul(val left:SugarExpression, val right:SugarExpression): SugarExpression{
+    override fun desugar(): Expression {
+       return EMul(left.desugar(), right.desugar())
+    }
+}
+\end{minted}
+Now it is pretty much replicating what with had with the usual expression.
+Main difference might be that we don't evaluate anything here. We're just converting Sugared expression to our core expressions.
+
+\subsubsection{Defining substraction}
+\label{sec:org1bfe461}
+Now we can extend our sugared languge with substraction function.
+\begin{minted}[]{kotlin}
+
+// Take a closer look at this method
+data class SugarSub(val left:SugarExpression, val right: SugarExpression):SugarExpression{
+    override fun desugar(): Expression {
+       return EAdd(left.desugar(),  EMul(EInt(-1), right.desugar() ))
+    }
+}
+\end{minted}
+
+Just have a look.
+We don't have substraction at our core language. But our customers might never know about it.
+For what they care, they can call \textbf{sub} function, and it would return the expected result to them.
+Isnt' that nice?
+
+But sharp-eyed reader might notice, that this implemantation would not work.
+Our parser returns Expressions, not SugarExpressions. We need to change that.
+And add few more unit tests to the mix.
+
+our parser looks like this now
+\begin{minted}[]{kotlin}
+import org.yaml.snakeyaml.Yaml
+
+fun parse(input:String):SugarExpression{
+    val yaml = Yaml()
+    val script = yaml.load<Any>(input)
+    return convert(script)
+}
+fun convert(obj:Any):SugarExpression{
+   if(obj is Int){
+       return SugarInt(obj)
+   }
+    if(obj is ArrayList<*>){
+        val operation= obj[0]
+        if(operation == "add"){
+            val left = convert(obj[1])
+            val right = convert(obj[2])
+            return SugarAdd(left, right)
+        }
+        if(operation =="mul"){
+            val left = convert(obj[1])
+            val right = convert(obj[2])
+            return SugarMul(left, right)
+        }
+        if(operation =="sub"){
+            val left = convert(obj[1])
+            val right = convert(obj[2])
+            return SugarSub(left, right)
+        }
+    }
+    return SugarInt(-42)
+}
+\end{minted}
+
+our tests should be changed in quite a few places. For example, parsing should be updated
+\begin{minted}[]{kotlin}
+ @Test
+    fun testComplicatedMultiplicationUnparse(){
+        val yaml = "[mul, [mul, 3, 5], 42]"
+        assertEquals(
+            yaml,
+            SugarMul(SugarMul(SugarInt(3), SugarInt(5)), SugarInt(42)).desugar().unparse())
+        assertEquals(yaml, parse(yaml).desugar().unparse())
+    }
+    @Test
+    fun testMulAndAddUnparse(){
+        val yaml = "[mul, [add, 22, 11], 44]"
+        assertEquals(
+            yaml,
+            SugarMul(SugarAdd(SugarInt(22), SugarInt(11)), SugarInt(44)).desugar().unparse())
+        assertEquals(yaml, parse(yaml).desugar().unparse())
+    }
+\end{minted}
+Do you see this beatuful pattern of parse -> desugar -> unparse
+
+Of course, evaluation tests should be changed as well
+\begin{minted}[]{kotlin}
+ @Test
+    fun testComplicatedMultiplicationWithParsing() {
+        assertEquals(EInt(10), parse("[mul, 1, [mul, 5, 2]]").desugar().eval())
+        assertEquals(EInt(12), parse("[mul, 2, [add, 5, 1]]").desugar().eval())
+
+        assertEquals("10", parse("[mul, 1, [mul, 5, 2]]").desugar().eval().unparse())
+        assertEquals("12", parse("[mul, 2, [add, 5, 1]]").desugar().eval().unparse())
+    }
+\end{minted}
+
+they follow the same pattern more or less. parse -> desugar -> eval -> unparse
+
+Now that our little refactoring is done, we are in a good shape to add test for our substraction.
+
+\begin{minted}[]{kotlin}
+    @Test
+    fun testMulAndSubUnparse(){
+
+        val yaml = "[mul, [sub, 22, 11], 44]"
+        val desugared = "[mul, [add, [mul, -1, 22], 11], 44]"
+        assertEquals(
+            desugared,
+            SugarMul(SugarSub(SugarInt(22), SugarInt(11)), SugarInt(44)).desugar().unparse())
+        assertEquals(desugared, parse(yaml).desugar().unparse())
+    }
+\end{minted}
+
+It is a good idea to test that evaluation of substraciton works as well.
+
+\begin{minted}[]{kotlin}
+    @Test
+    fun testMulAndSubEvaluationWithParsing(){
+        val yaml = "[mul, [sub, 22, 11], 44]"
+        assertEquals("484", parse(yaml).desugar().eval().unparse())
+    }
+\end{minted}
+
+We've just expanded our language with one more built-in function, wihout touching the core interpretation logic. And whast is even more interesting - the result of evaluation is correct.
+\subsection{Adding negation operation}
+\label{sec:orgf9d8454}
+Now we can expand our primitive list by adding operation \textbf{neg} which should change the sight of the operation.
+
+Since we're working with the sugared operations, we can approach to this having this definition
+\begin{minted}[]{kotlin}
+data class SugarNeg(val value:SugarExpression):SugarExpression{
+    override fun desugar(): Expression {
+       return EMul(EInt(-1), value.desugar())
+    }
+
+}
+\end{minted}
+
+Or we might go other way around.
+
+\begin{minted}[]{kotlin}
+data class SugarNeg2(val value:SugarExpression):SugarExpression{
+    override fun desugar(): Expression {
+       return SugarSub(SugarSub(value, value), value).desugar()
+    }
+
+}
+\end{minted}
+
+Second one would not be the most efficient implementation, but would reduce our dependency on the core language. As you might see there's no core language structures besides \textbf{Expression} as return value.
+
+This is a great example of flexibility sugaring and desugaring brings to the table.
+
+If we implemented negation first, we might change our implementation of \textbf{sub} as well.
+\begin{minted}[]{kotlin}
+data class SugarSub2(val left:SugarExpression, val right:SugarExpression):SugarExpression{
+    override fun desugar(): Expression {
+       return EAdd(SugarNeg(left).desugar(), right.desugar())
+    }
+}
+\end{minted}
+
+As you can see, sugaring gives a lot of flexibility towards how our functions are implemented.
+
+Let's finish our negation by adding some tests and parsing bits.
+\begin{minted}[]{kotlin}
+        if(operation =="neg"){
+            val value = convert(obj[1])
+            return SugarNeg(value)
+        }
+\end{minted}
+
+and test cases for the parsing
+\begin{minted}[]{kotlin}
+    @Test
+    fun testNegUnparse()
+    {
+        val yaml = "[neg, [mul, 2, 10]]"
+        val desugared = "[mul, -1, [mul, 2, 10]]"
+        assertEquals(desugared, SugarNeg(SugarMul(SugarInt(2), SugarInt(10))).desugar().unparse())
+        assertEquals(desugared, parse(yaml).desugar().unparse())
+    }
+\end{minted}
+
+and for the evaluation as well
+\begin{minted}[]{kotlin}
+    @Test
+    fun testNegationEvaluation(){
+        val yaml = "[neg, [mul, [sub, 22, 11], 44]]"
+        assertEquals("-484", parse(yaml).desugar().eval().unparse())
+    }
+\end{minted}
+
+Remember, there's no such thing as too many tests, if they all make sense.
+
+
+We will get back to the sugaring concept later. It is very powerful idea worth revisiting.
+
+\subsection{Food for thought}
+\label{sec:org851a56d}
+\begin{itemize}
+\item You want to add \textbf{uminus} operation, which is operates exactly like negation, but has different representation in yaml syntax.
+\begin{minted}[]{yaml}
+[uminus, [mul, [sub, 22, 11]], 44]
+\end{minted}
+Can you think of a way to make this evaluation possible touching only parsing?
+\end{itemize}
+
+\section{Adding primitive functions to the language}
+\label{sec:orgfe90400}
+Now that we know how to add new functions as part of our sugaring process, we might ask ourselves :
+``Is it possible to define new functions without touching the host language''?
+Now every new defined function should have some correspondence in Kotlin.
+It would be nice to make it happen in yaml directly.
+
+Let's come up with the syntax for the function definition.
+It might have a lot of different flavors, but all of them should take care of few elements
+\begin{enumerate}
+\item keyword for function definition
+\item function name
+\item function arguments
+\item body of the function
+\end{enumerate}
+
+We can start with the double function
+\begin{minted}[]{yaml}
+fun   # keyword for the function definition
+ - [double, x]  # function name and arguments
+ - [add, x, x]  # body of the function
+\end{minted}
+
+Of course short version would be preferrable for unit tests.
+\begin{minted}[]{yaml}
+[fun, [double, x], [add, x, x]]
+\end{minted}
+
+After defining \textbf{double} function, it is really tempting to introduce \textbf{quad} function
+
+\begin{minted}[]{yaml}
+[fun, [quad, x], [double, [double, x]]]
+\end{minted}
+functions should be able to call one another, otherwise what is the point in defining them?
+
+
+Functions without parameters should also be possible.
+
+\begin{minted}[]{yaml}
+[fun, [const42], 42]
+\end{minted}
+
+We will work with functions having single argument for now, and will deal with multiple arguments representation little bit later.
+
+\subsection{Dealing with function and argument names}
+\label{sec:org139b827}
+Now we have a good understanding how our function definitions would look like in yaml, let's think about how we gonna represent them in Kotlin.
+
+Before we start implementing anyting, we need to decide, how we can represent function and variables names.
+
+\begin{minted}[]{yaml}
+[fun, [double, x], [add, x, x]]
+\end{minted}
+
+When looking into this expression from yaml perspective `x` and `double` will be represented as strings.
+But semantically they should be different. They should represent some identifier, or a symbol if you wish.
+
+Therefore we need to expand our parser to support symbols.
+
+\begin{minted}[]{kotlin}
+data class ESymbol(val value:String):Expression{
+    override fun eval(): Expression {
+        return this
+    }
+
+    override fun unparse(): String {
+        return value
+    }
+}
+
+\end{minted}
+
+Here how our representation would look like
+\begin{minted}[]{kotlin}
+data class EFunDef(val name:ESymbol, val argument:ESymbol, val body:Expression):Expression{
+    override fun eval(): Expression {
+        return this
+    }
+
+    override fun unparse(): String {
+        return "[fun, [${name.unparse()}, ${argument.unparse()}], ${body.unparse()}]"
+    }
+}
+
+\end{minted}
+
+Function definition is evaluated to itself. It is just a delcaration of the function, it doesn't do anything at all.
+
+To make a function call, we need to have different structure. In some places it is called \textbf{function application}, i would use \textbf{function call}, since it is less academic and more commonly used
+\begin{minted}[]{kotlin}
+data class EFunCall(val name:ESymbol, val argument:Expression):Expression{
+    override fun eval(): Expression {
+        TODO("Not yet implemented")
+    }
+
+    override fun unparse(): String {
+        return "[${name.unparse()}, ${argument.unparse()}]"
+    }
+
+}
+\end{minted}
+
+We dont' know exactly how evaluation will work, but we can alreade expand our parser to support both function definitions and function calls.
+\subsection{Expanding parser for function definitions and calls}
+\label{sec:orgd872bef}
+When we are starting new implementation, and not totally sure what expected result is, we write tests.
+Parsing function definition looks like a good point.
+
+
+\section{Pros and cons of sugaring}
+\label{sec:org351f8e6}
+\subsection{performance hit}
+\label{sec:org7466280}
+\subsection{simplified runtime}
+\label{sec:orgf9aa8b0}
+\subsection{Haskell core language}
+\label{sec:org9635a89}
+\subsection{targeting degugaring}
+\label{sec:org33744d9}
+\subsection{WebAssembly desugar}
+\label{sec:org3421bd9}
+\subsection{python desugar}
+\label{sec:orgd4517d4}
+
+\section{Errors and strange things}
+\label{sec:org072a369}
+\subsection{adding division}
+\label{sec:org0366d9a}
+\subsection{what should happen if we divide by zero?}
+\label{sec:orgdb9942a}
+\subsection{It's all about environment}
+\label{sec:orgce2b084}
+\section{Defining variables for fun and profit}
+\label{sec:org342a2bb}
+While working with the expressions, it might be useful to have some variables.
+for example, ability to compute something like this:
+\begin{minted}[]{yaml}
+[mul, x, 3]
+\end{minted}
+To make it happen, we need to do some preparations.
+First of all, we need to understand what `x` means during parsing.
+Secondly, we should take the value attached to `x` from somewhere.
+
+If we try to use default yaml parser, it will say that `x` is represented as a string.
+And while we are not working with strings in our language at the moment, we definitely will be in the future.
+So during parsing we shall convert this string to some new type of the data.
+Something that can be treated as identifier or variable name. Let's call it a symbol
+
+\begin{minted}[]{kotlin}
+data class ESymbol(val value:String):Expression{
+    override fun eval(): Expression {
+        return this
+    }
+
+    override fun unparse(): String {
+        return value
+    }
+}
+
+data class SugarSymbol(val name:String):SugarExpression{
+    override fun desugar(): Expression {
+       return ESymbol(name)
+    }
+
+}
+\end{minted}
+Here's an example how it should work
+\begin{minted}[]{kotlin}
+    @Test
+    fun testOperationWithSymbol(){
+        assertEquals(SugarAdd(SugarSymbol("x"), SugarInt(5)),
+                     parse("[add, x, 5]"))
+
+        assertEquals(SugarAdd(SugarSymbol("x"), SugarSymbol("y")),
+                     parse("[add, x, y]"))
+
+        assertEquals(SugarAdd(
+                         SugarAdd(SugarSymbol("x"), SugarSymbol("y")),
+                        SugarSymbol("z")),
+            parse("[add, [add, x, y], z]"))
+
+    }
+\end{minted}
+Now we have a way to introduce variables to the expressions, but how are we planning to evaluate them?
+Which brings us to the next question
+\subsection{Where do our variables live?}
+\label{sec:org1064009}
+Variables should be defined somewhere. There should be a binding between symbol, and the value that symbol represents.
+
+The easiest way to make this mapping would be a dictionary. Or a hashmap if you like.
+
+\begin{minted}[]{kotlin}
+data class Environment(val bindings:HashMap<ESymbol, Expression>){
+    fun addBinding( name:ESymbol,  value:Expression){
+        bindings[name] = value
+    }
+    fun isDefined(name:ESymbol): Boolean{
+        return bindings.containsKey(name)
+    }
+    fun get(name:ESymbol):Expression{
+        return bindings[name]!!
+    }
+}
+\end{minted}
+As you can see we are assuming that we use core language as part of bindings.
+Since our evaluation process works on the core language, not the sugared one, this is very logical thing to do.
+
+Test cases are following:
+
+\begin{minted}[]{kotlin}
+
+    @Test
+    fun isDefined() {
+        val env = Environment(hashMapOf())
+        assertFalse(env.isDefined(ESymbol("x")))
+        val env2 = Environment(hashMapOf( Pair(ESymbol("x"), EInt(5))))
+        assertTrue(env2.isDefined(ESymbol("x")))
+    }
+    @Test
+    fun addBinding() {
+        val env = Environment(hashMapOf())
+        env.addBinding(ESymbol("x"), EInt(5))
+        assertTrue(env.isDefined(ESymbol("x")))
+        assertEquals(EInt(5), env.bindings[ESymbol("x")])
+        assertEquals(EInt(5), env.get(ESymbol("x")))
+
+    }
+\end{minted}
+
+What would happen if you try to get the variable that is not defined in the environment?
+You will get a runtime error of course. Error handling will be taken care of later. I promise :)
+Let us focus on well-behaving programs, where nothing strange happens.
+
+\subsection{Using environment in the evaluation}
+\label{sec:org5ad46ed}
+We know how to define variable, and bind values to them.
+But it wont' be useful until we can attach this environment to our evaluation.
+\begin{minted}[]{yaml}
+## somewhere out here we should have an environmet with defined 'x'
+[add, x, 5]
+\end{minted}
+
+The only place where we can plug it in is our \textbf{eval} function.
+Time for the improvement
+
+Remeber our \textbf{Expression} interface from very long time ago?
+\begin{minted}[]{kotlin}
+interface Expression{
+    fun eval():Expression
+    fun unparse():String
+}
+\end{minted}
+
+We will tweak it a little bit
+
+\begin{minted}[]{kotlin}
+interface Expression{
+    fun eval(env:Environment):Expression
+    fun unparse():String
+}
+\end{minted}
+
+We're claiming here that evaluation cannot happen in vacuum. We need to take into account an environment we're in.
+Sometimes it might be an empty environment, somethimes it might be full of variable definitions.
+
+This is a small step for our interface, but a huge impact for our interpreter.
+It breaks all our evaluation implementations.
+It breaks all our evaluation tests.
+Good news is that we have tests, so we know what is broken.
+What else can be done rather than fixing it?
+
+\subsection{Fixing evaluation with environment}
+\label{sec:org9da7bd1}
+Our first case is really simple one.
+\begin{minted}[]{kotlin}
+data class EInt(val value:Int):Expression {
+    override fun eval(): Expression {
+        return this
+    }
+   ...
+}
+\end{minted}
+
+How shall we interpret integer values if they live in some environment?
+Easy. Integers are always integers, so we can simply ignore the environment.
+
+\begin{minted}[]{kotlin}
+data class EInt(val value:Int):Expression {
+    override fun eval(env:Environment): Expression {
+        return this
+    }
+
+    override fun unparse(): String {
+        return value.toString()
+    }
+}
+\end{minted}
+
+Done.
+
+With addition and multiplication it would be not as straighforward.
+
+Let's stop and think for a moment.
+What we would like to happen when we have an expression defined within environment?
+\begin{minted}[]{yaml}
+## env: {x = 5}
+[add, x, 10]
+\end{minted}
+
+I would say it should be converted to
+\begin{minted}[]{yaml}
+[add, 5, 10]
+\end{minted}
+We don't care about the variable name. We care only about value attached to it. Its binding.
+
+Having variable name, variable definition and expression where this variable exists, we want to substitute variable with its value.
+
+\begin{minted}[]{kotlin}
+fun substitute(variableName:ESymbol), env:Environment, expession:Expression): Expression
+\end{minted}
+
+If you're thinking this function should be part of the \textbf{Expression} interface, in tend to agree with you.
+
+Our poor \textbf{Expression} is getting bigger and bigger, but it is a good things.
+
+\begin{minted}[]{kotlin}
+interface Expression{
+    fun eval(env:Environment):Expression
+    fun substitute(symbol:ESymbol, env:Environment):Environment
+    fun unparse():String
+}
+\end{minted}
+
+Now it breaks even more things in our code. But this is the price we need to pay.
+
+\begin{minted}[]{kotlin}
+data class EInt(val value:Int):Expression {
+    override fun eval(env:Environment): Expression {
+        return this
+    }
+
+    override fun substitute(symbol: ESymbol, env: Environment): Expression {
+        return this
+    }
+
+    override fun unparse(): String {
+        return value.toString()
+    }
+}
+\end{minted}
+
+for integers substituion is as easy as it gets.
+We are just ignoring all the symbols and environment.
+
+Let's see what we can do with \textbf{ESymbol}.
+\begin{minted}[]{kotlin}
+data class ESymbol(val name:String):Expression{
+    ...
+    override fun substitute(symbol: ESymbol, env: Environment): Expression {
+        if(symbol.name == name){
+            return env.get(symbol)
+        }
+        return this
+    }
+   ...
+}
+\end{minted}
+
+if we are trying to substitue symbol, and it is definted in the environment, we will return record from the variable.
+
+It might sound little bit confusing so here are few examples.
+
+\begin{minted}[]{yaml}
+# env: {x = 5}
+x
+\end{minted}
+
+should be transformed to
+
+\begin{minted}[]{yaml}
+5
+\end{minted}
+
+And if variable is not bound in the environment
+\begin{minted}[]{yaml}
+# env: {x = 5}
+y
+\end{minted}
+
+should remain untouched
+\begin{minted}[]{yaml}
+y
+\end{minted}
+
+
+Now that we've done with substitution for the symbols, addition and multiplication should be simple enough.
+
+\begin{minted}[]{kotlin}
+data class EAdd(val a:Expression, val b:Expression): Expression {
+   ...
+    override fun substitute(symbol: ESymbol, env: Environment): Expression {
+        return EAdd(a.substitute(symbol, env), b.substitute(symbol,env))
+    }
+   ...
+}
+
+data class EMul(val a:Expression, val b:Expression): Expression {
+    ...
+    override fun substitute(symbol: ESymbol, env: Environment): Expression {
+        return EMul(a.substitute(symbol, env), b.substitute(symbol, env))
+    }
+   ...
+}
+
+\end{minted}
+
+As usual, our tests would show us an example what we expect to happen, and how the variable substitution should look like.
+
+\begin{minted}[]{kotlin}
+ @Test
+    fun testSubstitution(){
+        val env1 = Environment(hashMapOf(Pair(ESymbol("x"), EInt(5))))
+        assertEquals(EInt(5), ESymbol("x").substitute(ESymbol("x"), env1))
+        assertEquals(ESymbol("y"), ESymbol("y").substitute(ESymbol("x"), env1))
+
+        assertEquals("[add, 5, 5]",
+            parse("[add, x, x]").desugar()
+                .substitute(ESymbol("x"), env1).unparse())
+
+        assertEquals("[mul, 5, 5]",
+            parse("[mul, x, x]").desugar()
+                .substitute(ESymbol("x"), env1).unparse())
+
+        assertEquals("[add, [mul, 5, 5], 5]",
+            parse("[add, [mul, x, x], x]").desugar()
+                .substitute(ESymbol("x"), env1).unparse())
+
+
+        val env2 = Environment(hashMapOf(Pair(ESymbol("x"), EInt(5)),
+            Pair(ESymbol("y"), EInt(7))))
+
+        assertEquals("[add, [mul, 5, y], 5]",
+            parse("[add, [mul, x, y], x]").desugar()
+                .substitute(ESymbol("x"), env2).unparse())
+
+
+        assertEquals("[add, [mul, 5, 7], 5]",
+            parse("[add, [mul, x, y], x]").desugar()
+                .substitute(ESymbol("x"), env2)
+                .substitute(ESymbol("y"), env2)
+                .unparse())
+
+        val complexEnv = Environment(hashMapOf(Pair(ESymbol("x"),
+            parse("[mul, 11, [add, [add, 3, 4], 11]]").desugar())))
+
+        assertEquals("[add, [mul, 11, [add, [add, 3, 4], 11]], [mul, 11, [add, [add, 3, 4], 11]]]",
+            parse("[add, x, x]").desugar()
+                .substitute(ESymbol("x"), complexEnv)
+                .unparse()
+            )
+    }
+\end{minted}
+As you can see, substitutions can be as complex as we want them to be.
+Now it is good time to do something about evaluation.
+\subsection{Mutalbe vs immutable variables}
+\label{sec:orgb1ded87}
+\section{Adding variables to the mix}
+\label{sec:orgdd358c5}
+\subsection{should variables have a type?}
+\label{sec:org4c7e6cc}
+\subsection{adding environment to our expressions}
+\label{sec:org85d739d}
+\subsection{if you change the environment, expression changes as well.}
+\label{sec:org6bd4302}
+\subsection{adding string support to the language}
+\label{sec:orgd405750}
+
+\subsection{powers, exponents, mods and so on}
+\label{sec:orgf0819df}
+\section{Evaluating parameters of the funciton. Order matters}
+\label{sec:org5bde0f4}
+\subsection{lazy vs eager evaluation. Pros, cons, implementation}
+\label{sec:orgc29dea4}
+\section{Adding functions to the language.}
+\label{sec:orgcf8ded0}
+\subsection{function definition syntax}
+\label{sec:orgabcad77}
+\subsection{function calls syntax}
+\label{sec:orgb251b3f}
+\subsection{What should happen if you define function within the function?}
+\label{sec:orgf100973}
+\subsection{What should happen if you call function within the function?}
+\label{sec:orga1c0064}
+\subsection{Few words on recursive calls}
+\label{sec:org7e34e02}
+\section{Adding conditional expressions}
+\label{sec:orgaa9098b}
+\subsection{adding boolean expression to the language}
+\label{sec:org908a687}
+\subsection{adding IFs to the mix}
+\label{sec:org5e232bd}
+\subsection{control flow is not as straighforward as you might think of it}
+\label{sec:org1b2f913}
+\section{Adding lists to the language}
+\label{sec:orgc66e750}
+\subsection{how generic is your generic?}
+\label{sec:orge4b9b0c}
+\subsection{how generic is your function?}
+\label{sec:orgec74a62}
+\subsection{adding foreach}
+\label{sec:org0fa1db1}
+\subsection{adding list comprehension}
+\label{sec:org901be26}
+\section{Typing and optimisation. part 2}
+\label{sec:org7867ea8}
+\section{Something about evaluation speed}
+\label{sec:org357d5d2}
+
+\subsection{environments again}
+\label{sec:orgfab1cb3}
+\subsection{tail call optimisation}
+\label{sec:org99c9968}
+\subsection{JZ, JNZ, JMP, Lisp \& WebAssembly}
+\label{sec:org5baf303}
+\section{Adding types to the language}
+\label{sec:orgc82f10c}
+\subsection{number vs float vs int32 vs int64}
+\label{sec:orgf09a2b5}
+\subsection{function should know about types as well}
+\label{sec:org6dd318c}
+\section{Minimal required type theory}
+\label{sec:orgd690421}
+\subsection{Why golang avoided generics for so long}
+\label{sec:org4ccdc22}
+\subsection{How to read typing expressions}
+\label{sec:org0444029}
+\section{type inferencing  the language. Simple version}
+\label{sec:orgefbf440}
+\section{Generating WebAssembly for fun and profit}
+\label{sec:org1455f8f}
+\section{Generating JVM based things for fun and profit}
+\label{sec:org1bbc1fd}
+\section{type inferencing on steroids}
+\label{sec:org02f30c9}
+\subsection{How haskell, scala and friends work under the hood}
+\label{sec:orgde128cd}
+\end{document}
