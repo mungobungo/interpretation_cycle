@@ -1566,6 +1566,290 @@ Let us start with the simple one
 #+end_src
 
 Actually we have several options
+We can substitute the value, or we can evaluate the value.
+
+Substitution example we've seen previously.
+#+begin_src kotlin
+        val complexEnv = Environment(hashMapOf(Pair(ESymbol("x"),
+            parse("[add, 10, 33]").desugar())))
+
+    // we are replacing 'x' with the expression it is bound to
+        assertEquals("[add, [add, 10, 33], [add, 10, 33]]",
+        parse("[add, x, x]").desugar()
+            .substitute(ESymbol("x"), complexEnv)
+            .unparse())
+
+        // and then we can do the evaluation
+        assertEquals("86",
+            parse("[add, x, x]").desugar()
+                .substitute(ESymbol("x"), complexEnv)
+                .eval(Environment(hashMapOf()))
+                .unparse())
+#+end_src
+
+Upside of this approach is that is straightforward. You know exaclty what is happening and why it is happening by just looking on the expression.
+
+But we can do something more interesting here.
+What if we evaluates 'x' before we do the substitution?
+after all, we know how to evaluate expresisons. And 'x' is an expresison in this scenario.
+Why not just do it?
+
+For that we would need to change our substitution function for the symbol
+currently it looks like this
+#+begin_src kotlin
+data class ESymbol(val name:String):Expression{
+
+   // ...
+    override fun substitute(symbol: ESymbol, env: Environment): Expression {
+        // we are just looking for the symbol in the environment
+        if(symbol.name == name){
+            return env.get(symbol)
+        }
+        return this
+    }
+    // ...
+
+}
+
+#+end_src
+
+Now instead of simply getting symbol value from environment we are evaluating it first.
+
+#+begin_src kotlin
+data class ESymbol(val name:String):Expression{
+
+ // ...
+    override fun substitute(symbol: ESymbol, env: Environment): Expression {
+        if(symbol.name == name){
+            // this part remains the same, getting value out of env
+            val initialExpression = env.get(symbol)
+
+            // evaluating the symbol in the same environment
+            val evaluated = initialExpression.eval(env)
+
+            // saving evaluated expression back to the environment
+            env.bindings[symbol] = evaluated
+
+            return evaluated
+        }
+        return this
+    }
+    // ...
+
+}
+#+end_src
+
+Unfortunately, our test will be broken now and will fail with the following exception
+#+begin_src kotlin
+       val complexEnv = Environment(hashMapOf(Pair(ESymbol("x"),
+            parse("[add, 10, 33]").desugar())))
+
+        assertEquals("[add, [add, 10, 33], [add, 10, 33]]",
+        parse("[add, x, x]").desugar()
+            .substitute(ESymbol("x"), complexEnv)
+            .unparse())
+
+Expected :[add, [add, 10, 33], [add, 10, 33]]
+Actual   :[add, 43, 43]
+#+end_src
+
+Any ideas why it happened?
+Of course, previously we were substituting the 'x' with explicit value '[add, 10, 33]'.
+And now we are replacing it with the computed value '43' in this case.
+
+Adjusted unit test would look like this
+
+#+begin_src kotlin
+    @Test
+    fun testComplicatedExpression(){
+        val complexEnv = Environment(hashMapOf(Pair(ESymbol("x"),
+            parse("[add, 10, 33]").desugar())))
+
+        assertEquals("[add, 43, 43]",
+        parse("[add, x, x]").desugar()
+            .substitute(ESymbol("x"), complexEnv)
+            .unparse())
+
+        assertEquals("86",
+            parse("[add, x, x]").desugar()
+                .substitute(ESymbol("x"), complexEnv)
+                .eval(Environment(hashMapOf()))
+                .unparse())
+    }
+#+end_src
+
+What else has changed?
+Well now we are more computationally efficient: 'x' is calculated only once, during the substitution phase.
+
+We can go even further - add flag 'computed' to the symbol, so we don't call 'evaluate' more than once.
+
+#+begin_src kotlin
+ data class ESymbol(val name:String):Expression{
+// we've added the evaluated flag to know if this symbol has been already evaluated
+     var evaluated = false
+
+    override fun eval(env: Environment): Expression {
+        return this
+    }
+
+    override fun substitute(symbol: ESymbol, env: Environment): Expression {
+        if(symbol.name == name){
+
+            val initialExpression = env.get(symbol)
+            // if it has been evaluated, we just return the result
+            if(this.evaluated){
+                return initialExpression
+            }
+
+            // otherwise we are executing the evaluation
+            val evaluatedSymbol = initialExpression.eval(env)
+
+            // save the result in the environment
+            env.bindings[symbol] = evaluatedSymbol
+            // and updateing the evaluated flag
+            this.evaluated = true
+            return evaluatedSymbol
+        }
+        return this
+    }
+
+    override fun unparse(): String {
+        return name
+    }
+}
+#+end_src
+
+No matter how many times 'x' will be referenced during the calculations it will be calculated only once.
+This fact remains true for any variable we are substituting in the expression.
+
+Let's look at our test one more time.
+Can we improve something here?
+#+begin_src kotlin
+        val complexEnv = Environment(hashMapOf(Pair(ESymbol("x"),
+            parse("[add, 10, 33]").desugar())))
+
+        assertEquals("86",
+            parse("[add, x, x]").desugar()
+                .substitute(ESymbol("x"), complexEnv)
+                .eval(Environment(hashMapOf()))
+                .unparse())
+#+end_src
+
+We are calling `substitute` before the evaluting expression.
+Which is fine, but can we do this substitution right inside of evaluation?
+After all symbol knows how to substitute itself given the environment?
+
+What if we do somehting like this:
+
+#+begin_src kotlin
+ data class ESymbol(val name:String):Expression{
+     var evaluated = false
+
+    override fun eval(env: Environment): Expression {
+        // now instead of returning the symbol itself
+        // we're returning the substitution of it
+        // this means every symbol is evaluated only once.
+
+        return substitute(this, env)
+        // return this;
+    }
+
+#+end_src
+
+And now the test might be simplified a little bit
+#+begin_src kotlin
+        val complexEnv = Environment(hashMapOf(Pair(ESymbol("x"),
+            parse("[add, 10, 33]").desugar())))
+
+        assertEquals("86",
+            parse("[add, x, x]").desugar()
+            // substitution would still work
+            // and provide the same result
+                .substitute(ESymbol("x"), complexEnv)
+                .eval(Environment(hashMapOf()))
+                .unparse())
+
+
+        assertEquals("86",
+            parse("[add, x, x]").desugar()
+                // passing complex environmet to the expression
+                // no need to substitute manually
+                .eval(complexEnv)
+                .unparse())
+#+end_src
+
+
+let's change the evironment and see if our result changes as well.
+
+#+begin_src kotlin
+    @Test
+    fun testingSameExpressionDifferentEnvironment(){
+        val firstEnv = Environment(hashMapOf(Pair(ESymbol("x"),
+            parse("[add, 10, 33]").desugar())))
+
+        val firstExpression=parse("[add, x, x]").desugar()
+
+        assertEquals("86",
+            firstExpression
+                .eval(firstEnv)
+                .unparse())
+
+        val secondEnv = Environment(hashMapOf(Pair(ESymbol("x"),
+            parse("[add, 20, 11]").desugar())))
+        val secondExpression=parse("[add, x, x]").desugar()
+        assertEquals("62",
+            secondExpression
+                .eval(secondEnv)
+                .unparse())
+
+    }
+#+end_src
+
+We have two indentical expressions `[add, x, x]`
+and their evaluation results changes if we change the environment.
+Now our programs has become way more generic. Defining variables and evaluating them in differnt contexts is extremely powerful tool.
+We will use to work with functions. But not's let get ahead of ourselves.
+
+What whould happen if we use single expression in both tests?
+would it work? Any guesses?
+#+begin_src kotlin
+    @Test
+    fun testingExactlySameExpressionDifferentEnvironment(){
+        val firstEnv = Environment(hashMapOf(Pair(ESymbol("x"),
+            parse("[add, 10, 33]").desugar())))
+
+        val expression=parse("[add, x, x]").desugar()
+
+        assertEquals("86",
+            expression
+                .eval(firstEnv)
+                .unparse())
+
+        val secondEnv = Environment(hashMapOf(Pair(ESymbol("x"),
+            parse("[add, 20, 11]").desugar())))
+        assertEquals("62",
+            expression
+                .eval(secondEnv)
+                .unparse())
+
+    }
+#+end_src
+
+Almost the same example. But now we have one expression evaluated in two different environments.
+And it fails on the second one with very strange error.
+
+#+begin_src kotlin
+java.lang.ClassCastException: class EAdd cannot be cast to class EInt (EAdd and EInt are in unnamed module of loader 'app')
+
+	at EAdd.eval(Domain.kt:44)
+#+end_src
+
+Why is that? How come that seemingly indentical tests behave differently?
+
+Maybe it depends on the environment itself? But no.
+If we change the place of `firstEnv` and `secondEnv` we would still get the same error.
+
+Something fishy is going on here. Let's have a closer look
 ** Mutalbe vs immutable variables
 * Adding variables to the mix
 **   should variables have a type?
