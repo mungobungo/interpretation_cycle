@@ -428,8 +428,8 @@ EAdd(EInt(3), EInt(5))
 might be represented in yaml as
 #+begin_src yaml
 add
-  - 1
-  - 2
+  - 3
+  - 5
 #+end_src
 
 And more complex expresison
