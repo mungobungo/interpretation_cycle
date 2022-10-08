@@ -434,7 +434,7 @@ add
 
 And more complex expresison
 #+begin_src kotlin
-EMul(EAdd(EInt(3), EInt(5)), EInt(10))
+EMul(EInt(10), EAdd(EInt(1), EInt(2)))
 #+end_src
 Will have a form
 #+begin_src yaml
