@@ -1478,8 +1478,6 @@ As usual, our tests would show us an example what we expect to happen, and how t
 
         val env2 = Environment(hashMapOf(Pair(ESymbol("x"), EInt(5)),
             Pair(ESymbol("y"), EInt(7))))
-
-        assertEquals("[add, [mul, 5, y], 5]",
             parse("[add, [mul, x, y], x]").desugar()
                 .substitute(ESymbol("x"), env2).unparse())
 
@@ -1502,6 +1500,72 @@ As usual, our tests would show us an example what we expect to happen, and how t
 #+end_src
 As you can see, substitutions can be as complex as we want them to be.
 Now it is good time to do something about evaluation.
+** improving taking into account the variables.
+At this point we know how to substitute variables, and we also know how to evaluate expressions.
+So mixing these two together we will get the evaluation process.
+#+begin_src kotlin
+        assertEquals("10",
+            parse("[add, x, x]").desugar()
+                .substitute(ESymbol("x"), env1)
+                .eval(env1).unparse())
+
+        assertEquals("25",
+            parse("[mul, x, x]").desugar()
+                .substitute(ESymbol("x"), env1)
+                .eval(env1)
+                .unparse())
+
+        assertEquals("30",
+            parse("[add, [mul, x, x], x]").desugar()
+                .substitute(ESymbol("x"), env1)
+                .eval(env1)
+                .unparse())
+
+#+end_src
+these examples would work, evaluation is simple and straghtforward
+
+#+begin_src kotlin
+        assertEquals("[add, [mul, 5, y], 5]",
+            parse("[add, [mul, x, y], x]").desugar()
+                .substitute(ESymbol("x"), env2)
+                .eval(env1)
+                .unparse())
+
+#+end_src
+and this will error out.
+Because we cannot evaluate the symbol ' y'
+
+As you can see for the evaluation it is really important to substitute all the variables before we do the evaluation. Otherwise we would get as what is know as 'variable not found' exception.
+
+this is easily fixable. We just need to substitute 'y' as well
+#+begin_src kotlin
+        assertEquals("[add, [mul, 5, y], 5]",
+            parse("[add, [mul, x, y], x]").desugar()
+                .substitute(ESymbol("x"), env2)
+                .substitute(ESymbol("y"), env2)
+                .eval(env1)
+                .unparse())
+#+end_src
+
+Now it is green.
+
+In you looked carefully, you might see that substitution uses env2 for both variables, while evaluation uses 'env1'. This shows us flexibility the interpreter shows. But at the same time it reminds us how careful we should be about passing the correct environment.
+
+Some might ask - why do we need to pass environment during the substitugion phase?
+Can't it be taken from the environment during the evaluation phase?
+Very good question. It could  be done that way, but you well need to do foreach replacement for every variable in the environment. While the expression itself might use only oe or two of them. Or manybe none at all.
+
+** What if our variables are more complex than simple constants?
+Prevously our values for 'x' and 'y' were simple constants. But what if we want them to be expressions?
+What needs to be changed, and how much effort would it require to make evaluation aware of more complicated expressions?
+
+Let us start with the simple one
+#+begin_src yaml
+# env : {x = [add, 40,2]}
+[add, x, x]
+#+end_src
+
+Actually we have several options
 ** Mutalbe vs immutable variables
 * Adding variables to the mix
 **   should variables have a type?

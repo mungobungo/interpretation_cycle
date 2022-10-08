@@ -1,4 +1,4 @@
-% Created 2022-09-30 Fri 23:07
+% Created 2022-10-08 Sat 14:48
 % Intended LaTeX compiler: pdflatex
 \documentclass[11pt]{article}
 \usepackage[utf8]{inputenc}
@@ -29,7 +29,7 @@
 \tableofcontents
 
 \section{Interpretation. part 1}
-\label{sec:org5bd842f}
+\label{sec:org2bf0535}
 The core functionality of interpreters might be distilled to two steps.
 \begin{enumerate}
 \item Parse source code to some internal representation
@@ -39,7 +39,7 @@ Here I will do my best to skip as much as possible of the first one.
 You dont' need to know quantum physics to be able to swim.
 
 \subsection{Can you do it?}
-\label{sec:orgba3d2f8}
+\label{sec:orgaeb0e5d}
 When talking about interpretation  most of the people start thinking about complex things.
 register allocation, memory management, grammars and DFAs.
 I will try to keep it simple.
@@ -65,7 +65,7 @@ We're just transforming on tree structure to another tree structure.
 And this is the essense of interpretation. We're taking one tree structure and converting it to another tree structure.
 If you can convert yaml to html, you're good to go.
 \section{Parsing and other friends}
-\label{sec:org2f4bfbf}
+\label{sec:orgaf118cc}
 Most of the compilers and interpreters books start with parsing.
 You neeed to investigate what DFA is, how it is different from NFA, and why regular expressions are not always the best choice.
 Then you will follow on grammars. Context free grammars, left recursion elimination and so on.
@@ -74,7 +74,7 @@ This usually happens 200-300 pages into the book. And while this is very importa
 Therefore approach in this book will take us as fast as possible to the actual interpretation, skipping all unnecessary steps if possible.
 To begin with we will start with arithmetic expressions.
 \subsection{The simplest expressions you can think of}
-\label{sec:orgb6f7570}
+\label{sec:org4f91c96}
 Implementing anything on JVM starts with interfaces.
 let's us to the same and implement your first Expression
 \begin{minted}[]{kotlin}
@@ -83,29 +83,29 @@ interface Expression
 
 It's not much, but we will improve it really fast. Just stay tuned.
 \subsubsection{Integer values}
-\label{sec:org2761bfa}
+\label{sec:org9b1e432}
 It is hard to do any computations when you don't have numbers.
 \begin{minted}[]{kotlin}
 data class EInt(val v:Int):Expression
 \end{minted}
 For now integers are more than enough for us to have. Adding boolean and float values will follow.
 \subsubsection{Addition}
-\label{sec:org7d6dc90}
+\label{sec:org3604365}
 Adding additional addition to the mix would not be a problem
 \begin{minted}[]{kotlin}
 data class EAdd(val a:EInt, val b:EInt): Expression
 
 \end{minted}
 \subsubsection{Multiplication}
-\label{sec:org1b910c7}
+\label{sec:org5e5c178}
 The same goes for the multiplication
 \begin{minted}[]{kotlin}
 data class EMul(val a:EInt, val b:EInt): Expression
 \end{minted}
 \subsection{What else can we add to the expressions}
-\label{sec:org65b785e}
+\label{sec:org77e444a}
 \subsection{Representing expressions in a code}
-\label{sec:orgc87280c}
+\label{sec:orga9d7f3d}
 Now we have all the required components to actually start calulating.
 How would expression
 \begin{minted}[]{kotlin}
@@ -131,9 +131,9 @@ EMul(5, EMul(5, EAdd(2 , 2)))
 \end{minted}
 
 \section{Evaluating expressions for fun and profit}
-\label{sec:org54a823f}
+\label{sec:org2e7a83f}
 \subsection{Evaluating integers. As simple as it gets}
-\label{sec:orgb08d178}
+\label{sec:org51114cc}
 Having expresisons is nice, but why do we need them if we can't calculate them on the fly?
 as TDD teaches us, you whould start from the test first.
 So be it.
@@ -161,7 +161,7 @@ and it also makes our tests green.
 
 
 \subsection{Evaluating addition}
-\label{sec:orgf16d44e}
+\label{sec:org7a04a7f}
 Now we are facing our first real challenge.
 How can we evaluate addition?
 
@@ -280,7 +280,7 @@ What will happen if during \textbf{eval} some error will be raised?
 These are very good questions. and we will get to them later. For now let us keep our focus on general picture.
 
 \subsection{Evaluating multiplication}
-\label{sec:org98dad81}
+\label{sec:org9c1e432}
 After spending so much time on evaluating addition, expanding our expressions to support multiplication is straighforward.
 But first - tests.
 \begin{minted}[]{kotlin}
@@ -349,9 +349,9 @@ fun eval( expression:Expression): Expression{
 
 
 \subsection{Sidenotes}
-\label{sec:org0b09f47}
+\label{sec:org7e5b4a5}
 \subsubsection{Moving evaluation into each expression}
-\label{sec:org4aab58c}
+\label{sec:org8bf0947}
 At this point all our evaluation is sitting within one \textbf{eval} function.
 If we gonna add more expressions to the interpreter, amount of \textbf{if} statements will grow.
 This can be avoided by extracting specific parts of the code, and moving them to expressions.
@@ -391,7 +391,7 @@ It would require to change the test implementation as well.
 
 \end{minted}
 \subsubsection{Simple optimisations}
-\label{sec:org04a5ec4}
+\label{sec:org27dc48e}
 You might agree that multiplying anything by zero would not help a lot.
 We can include it in our evaluation of \textbf{EMul}
 \begin{minted}[]{kotlin}
@@ -424,7 +424,7 @@ data class EMul(val a:Expression, val b:Expression): Expression {
 }
 \end{minted}
 \section{The simplest parser you can think of}
-\label{sec:orga39beb7}
+\label{sec:org1dcd603}
 To make the whole parsing easy, let us reiterate what problem are we trying to solve.
 We need to take a string, and convert it to the expression.
 It can be expressed in a test.
@@ -441,7 +441,7 @@ The most popular programming language of the century.
 YAML.
 
 \subsection{Parsing integers with yaml}
-\label{sec:org836065f}
+\label{sec:org3c00e21}
 To make it work we would need to add dependency to the great \textbf{snakeyaml} library
 \begin{minted}[]{kotlin}
 dependencies {
@@ -467,7 +467,7 @@ fun parse(input:String):Expression{
 
 We cannot parse anything but integers now, but at least our tests are green. Isn't that great?
 \subsection{Expanding yaml expressions to support addition}
-\label{sec:org4032bb3}
+\label{sec:orge2ba836}
 If you remember, our goal is to convert from strings to expressions as easy as possible.
 To make it happen, the language we would use should be very similar to the expressions we have.
 
@@ -518,7 +518,7 @@ is represented as
 \end{minted}
 I kinda like it. It is shorter, and represents our internal structure pretty much
 \subsection{parsing yaml with predefined expressions}
-\label{sec:org2b8ea83}
+\label{sec:org65f456a}
 Test goes first
 \begin{minted}[]{kotlin}
    @Test()
@@ -574,7 +574,7 @@ Let's see if we try to parse more complicated expression.
 
 Green as well. Nice work!
 \subsection{Adding multiplication to the mix}
-\label{sec:org4362286}
+\label{sec:org5c041d8}
 Now we know what to expect, so we will add both tests from the beginning
 \begin{minted}[]{kotlin}
     @Test
@@ -616,7 +616,7 @@ Let's see how well they are working together.
 Tests are green. Feels great, isn't it?
 
 \subsection{Evaluating parsed expressions}
-\label{sec:orgff6ac05}
+\label{sec:org8232394}
 Now we have both parth of the story. We can take a string and convert it to an expression.
 We can take an expression and evaluate it.
 Let us add some more tests would confirm this fact.
@@ -633,7 +633,7 @@ Let us add some more tests would confirm this fact.
 I specifically put original version here, so it is easy to compare complexity of expressions and amount of brackets.
 
 \subsection{One more touch}
-\label{sec:org69e5130}
+\label{sec:org8fbe19c}
 If you look closely on the previous test, you might wondered, why did we use \textbf{EInt(10)} instead of just \textbf{10}? How hard would that be to make it happen?
 
 Well, let's add one more operation, and call it \textbf{unparse}. It will take an expression and convert it to our yaml format. in such a way we will have the whole circle of life
@@ -724,7 +724,7 @@ data class EAdd(val a:Expression, val b:Expression): Expression {
 \end{minted}
 As expected, tests are passing.
 \subsection{Evaluating parsed expressions}
-\label{sec:orgf08f304}
+\label{sec:org5b39f76}
 We took some detour to make the basics work. Now we know how to read yaml, interpret the contents of the yaml using intermediate representation, and save results back to the yaml. Which in turn can be read, interpreted and saved to yaml.
 
 But what is missing is some tests that confirm that our assumptions are correct.
@@ -772,7 +772,7 @@ But what is missing is some tests that confirm that our assumptions are correct.
 In the last test you can see all the parts working together.
 And as you might have guessed, our tests are passing.
 \subsection{Food for thought}
-\label{sec:orge600e26}
+\label{sec:org4fece5d}
 Parsing plays important role in the whole evaluation process. While we simplified it to the minimum, we still can improve it.
 
 For example - we have duplication while parsing addition and multiplication operations.
@@ -798,7 +798,7 @@ Since we know that multiplication by zero would give us zero in the end, why bot
 And as in previous example - we are simplifiying evaluation by complicating parsing.
 You cannot remove the complexity. You can just push it somewhere else.
 \subsection{Reflecting and Wrapping up}
-\label{sec:org123ef33}
+\label{sec:org4c77f78}
 It took some time and turns to get to this point.
 A lot of text, and a lot of explanations. But try to look at it from the different perspective.
 our parser is 26 lines long, and our interpreter is just 42 lines long.
@@ -879,19 +879,19 @@ fun convert(obj:Any):Expression{
 }
 \end{minted}
 \section{Core language, host language and a lot of sugar}
-\label{sec:orgc19f94c}
+\label{sec:org9d990cb}
 When implementing and interpreter you want to have ability to define new type of capabilites.
 At the same time you don't want to spend too much time refactoring base implementation.
 Changing Ast and tests for it, implementations, is very time consuming process.
 \subsection{core, host, sugared}
-\label{sec:org040c614}
+\label{sec:org1481998}
 This can be avoided by introducing new level of abstration. As you know, you can solve every problem in IT by adding an additional level of abstraction.
 Let's call our arimetic language we have the core language. It is core of our interpreter, and we don't want to expose its internal for the customers.
 We would like to keep it as small as possible, so all refatoring and optimisations would have smaller blast radius.
 As for ease of use we can create new expressions, which we would call sugared expressions.
 They will be used as our interface, and should be converted to the core language to be interpreted
 \subsection{Adding sugar}
-\label{sec:orge90e110}
+\label{sec:orgc47c09b}
 Let's say we want to add new operation to the mix \textbf{sub}, which stands for the substraction.
 how would it fit to our idea of sugared language?
 \begin{minted}[]{kotlin}
@@ -922,7 +922,7 @@ Now it is pretty much replicating what with had with the usual expression.
 Main difference might be that we don't evaluate anything here. We're just converting Sugared expression to our core expressions.
 
 \subsubsection{Defining substraction}
-\label{sec:org1bfe461}
+\label{sec:orgd33c63c}
 Now we can extend our sugared languge with substraction function.
 \begin{minted}[]{kotlin}
 
@@ -1040,7 +1040,7 @@ It is a good idea to test that evaluation of substraciton works as well.
 
 We've just expanded our language with one more built-in function, wihout touching the core interpretation logic. And whast is even more interesting - the result of evaluation is correct.
 \subsection{Adding negation operation}
-\label{sec:orgf9d8454}
+\label{sec:org22b1d44}
 Now we can expand our primitive list by adding operation \textbf{neg} which should change the sight of the operation.
 
 Since we're working with the sugared operations, we can approach to this having this definition
@@ -1114,7 +1114,7 @@ Remember, there's no such thing as too many tests, if they all make sense.
 We will get back to the sugaring concept later. It is very powerful idea worth revisiting.
 
 \subsection{Food for thought}
-\label{sec:org851a56d}
+\label{sec:org6567079}
 \begin{itemize}
 \item You want to add \textbf{uminus} operation, which is operates exactly like negation, but has different representation in yaml syntax.
 \begin{minted}[]{yaml}
@@ -1124,7 +1124,7 @@ Can you think of a way to make this evaluation possible touching only parsing?
 \end{itemize}
 
 \section{Adding primitive functions to the language}
-\label{sec:orgfe90400}
+\label{sec:org9c1e5b0}
 Now that we know how to add new functions as part of our sugaring process, we might ask ourselves :
 ``Is it possible to define new functions without touching the host language''?
 Now every new defined function should have some correspondence in Kotlin.
@@ -1168,7 +1168,7 @@ Functions without parameters should also be possible.
 We will work with functions having single argument for now, and will deal with multiple arguments representation little bit later.
 
 \subsection{Dealing with function and argument names}
-\label{sec:org139b827}
+\label{sec:org797f9b1}
 Now we have a good understanding how our function definitions would look like in yaml, let's think about how we gonna represent them in Kotlin.
 
 Before we start implementing anyting, we need to decide, how we can represent function and variables names.
@@ -1227,36 +1227,36 @@ data class EFunCall(val name:ESymbol, val argument:Expression):Expression{
 
 We dont' know exactly how evaluation will work, but we can alreade expand our parser to support both function definitions and function calls.
 \subsection{Expanding parser for function definitions and calls}
-\label{sec:orgd872bef}
+\label{sec:org5252779}
 When we are starting new implementation, and not totally sure what expected result is, we write tests.
 Parsing function definition looks like a good point.
 
 
 \section{Pros and cons of sugaring}
-\label{sec:org351f8e6}
+\label{sec:org499ff37}
 \subsection{performance hit}
-\label{sec:org7466280}
+\label{sec:org5cad1e3}
 \subsection{simplified runtime}
-\label{sec:orgf9aa8b0}
+\label{sec:org134ac99}
 \subsection{Haskell core language}
-\label{sec:org9635a89}
+\label{sec:orgb31ecb3}
 \subsection{targeting degugaring}
-\label{sec:org33744d9}
+\label{sec:orge5b18cb}
 \subsection{WebAssembly desugar}
-\label{sec:org3421bd9}
+\label{sec:orgcba0432}
 \subsection{python desugar}
-\label{sec:orgd4517d4}
+\label{sec:org41692bf}
 
 \section{Errors and strange things}
-\label{sec:org072a369}
+\label{sec:org272223e}
 \subsection{adding division}
-\label{sec:org0366d9a}
+\label{sec:org389fea0}
 \subsection{what should happen if we divide by zero?}
-\label{sec:orgdb9942a}
+\label{sec:orge9f5032}
 \subsection{It's all about environment}
-\label{sec:orgce2b084}
+\label{sec:org654ab46}
 \section{Defining variables for fun and profit}
-\label{sec:org342a2bb}
+\label{sec:org0de6592}
 While working with the expressions, it might be useful to have some variables.
 for example, ability to compute something like this:
 \begin{minted}[]{yaml}
@@ -1309,7 +1309,7 @@ Here's an example how it should work
 Now we have a way to introduce variables to the expressions, but how are we planning to evaluate them?
 Which brings us to the next question
 \subsection{Where do our variables live?}
-\label{sec:org1064009}
+\label{sec:orgd5c46d8}
 Variables should be defined somewhere. There should be a binding between symbol, and the value that symbol represents.
 
 The easiest way to make this mapping would be a dictionary. Or a hashmap if you like.
@@ -1357,7 +1357,7 @@ You will get a runtime error of course. Error handling will be taken care of lat
 Let us focus on well-behaving programs, where nothing strange happens.
 
 \subsection{Using environment in the evaluation}
-\label{sec:org5ad46ed}
+\label{sec:orgdc90d40}
 We know how to define variable, and bind values to them.
 But it wont' be useful until we can attach this environment to our evaluation.
 \begin{minted}[]{yaml}
@@ -1395,7 +1395,7 @@ Good news is that we have tests, so we know what is broken.
 What else can be done rather than fixing it?
 
 \subsection{Fixing evaluation with environment}
-\label{sec:org9da7bd1}
+\label{sec:org6e99963}
 Our first case is really simple one.
 \begin{minted}[]{kotlin}
 data class EInt(val value:Int):Expression {
@@ -1563,8 +1563,6 @@ As usual, our tests would show us an example what we expect to happen, and how t
 
         val env2 = Environment(hashMapOf(Pair(ESymbol("x"), EInt(5)),
             Pair(ESymbol("y"), EInt(7))))
-
-        assertEquals("[add, [mul, 5, y], 5]",
             parse("[add, [mul, x, y], x]").desugar()
                 .substitute(ESymbol("x"), env2).unparse())
 
@@ -1587,86 +1585,154 @@ As usual, our tests would show us an example what we expect to happen, and how t
 \end{minted}
 As you can see, substitutions can be as complex as we want them to be.
 Now it is good time to do something about evaluation.
+\subsection{improving taking into account the variables.}
+\label{sec:orga07c173}
+At this point we know how to substitute variables, and we also know how to evaluate expressions.
+So mixing these two together we will get the evaluation process.
+\begin{minted}[]{kotlin}
+        assertEquals("10",
+            parse("[add, x, x]").desugar()
+                .substitute(ESymbol("x"), env1)
+                .eval(env1).unparse())
+
+        assertEquals("25",
+            parse("[mul, x, x]").desugar()
+                .substitute(ESymbol("x"), env1)
+                .eval(env1)
+                .unparse())
+
+        assertEquals("30",
+            parse("[add, [mul, x, x], x]").desugar()
+                .substitute(ESymbol("x"), env1)
+                .eval(env1)
+                .unparse())
+
+\end{minted}
+these examples would work, evaluation is simple and straghtforward
+
+\begin{minted}[]{kotlin}
+        assertEquals("[add, [mul, 5, y], 5]",
+            parse("[add, [mul, x, y], x]").desugar()
+                .substitute(ESymbol("x"), env2)
+                .eval(env1)
+                .unparse())
+
+\end{minted}
+and this will error out.
+Because we cannot evaluate the symbol ' y'
+
+As you can see for the evaluation it is really important to substitute all the variables before we do the evaluation. Otherwise we would get as what is know as 'variable not found' exception.
+
+this is easily fixable. We just need to substitute 'y' as well
+\begin{minted}[]{kotlin}
+        assertEquals("[add, [mul, 5, y], 5]",
+            parse("[add, [mul, x, y], x]").desugar()
+                .substitute(ESymbol("x"), env2)
+                .substitute(ESymbol("y"), env2)
+                .eval(env1)
+                .unparse())
+\end{minted}
+
+Now it is green.
+
+In you looked carefully, you might see that substitution uses env2 for both variables, while evaluation uses 'env1'. This shows us flexibility the interpreter shows. But at the same time it reminds us how careful we should be about passing the correct environment.
+
+Some might ask - why do we need to pass environment during the substitugion phase?
+Can't it be taken from the environment during the evaluation phase?
+Very good question. It could  be done that way, but you well need to do foreach replacement for every variable in the environment. While the expression itself might use only oe or two of them. Or manybe none at all.
+
+\subsection{What if our variables are more complex than simple constants?}
+\label{sec:org983ea6d}
+Prevously our values for 'x' and 'y' were simple constants. But what if we want them to be expressions?
+What needs to be changed, and how much effort would it require to make evaluation aware of more complicated expressions?
+
+Let us start with the simple one
+\begin{minted}[]{yaml}
+# env : {x = [add, 40,2]}
+[add, x, x]
+\end{minted}
+
+Actually we have several options
 \subsection{Mutalbe vs immutable variables}
-\label{sec:orgb1ded87}
+\label{sec:org447ccfc}
 \section{Adding variables to the mix}
-\label{sec:orgdd358c5}
+\label{sec:org1f6bee9}
 \subsection{should variables have a type?}
-\label{sec:org4c7e6cc}
+\label{sec:orgadce911}
 \subsection{adding environment to our expressions}
-\label{sec:org85d739d}
+\label{sec:orgb98274b}
 \subsection{if you change the environment, expression changes as well.}
-\label{sec:org6bd4302}
+\label{sec:org8b38f9e}
 \subsection{adding string support to the language}
-\label{sec:orgd405750}
+\label{sec:org26b9ee0}
 
 \subsection{powers, exponents, mods and so on}
-\label{sec:orgf0819df}
+\label{sec:org55d89a4}
 \section{Evaluating parameters of the funciton. Order matters}
-\label{sec:org5bde0f4}
+\label{sec:org98161ba}
 \subsection{lazy vs eager evaluation. Pros, cons, implementation}
-\label{sec:orgc29dea4}
+\label{sec:orga65af03}
 \section{Adding functions to the language.}
-\label{sec:orgcf8ded0}
+\label{sec:org5942c7a}
 \subsection{function definition syntax}
-\label{sec:orgabcad77}
+\label{sec:orgf7e236a}
 \subsection{function calls syntax}
-\label{sec:orgb251b3f}
+\label{sec:orgd8a3227}
 \subsection{What should happen if you define function within the function?}
-\label{sec:orgf100973}
+\label{sec:org3156921}
 \subsection{What should happen if you call function within the function?}
-\label{sec:orga1c0064}
+\label{sec:org59fc726}
 \subsection{Few words on recursive calls}
-\label{sec:org7e34e02}
+\label{sec:org4e427ac}
 \section{Adding conditional expressions}
-\label{sec:orgaa9098b}
+\label{sec:org3840b82}
 \subsection{adding boolean expression to the language}
-\label{sec:org908a687}
+\label{sec:orgb07a7a4}
 \subsection{adding IFs to the mix}
-\label{sec:org5e232bd}
+\label{sec:org23699c4}
 \subsection{control flow is not as straighforward as you might think of it}
-\label{sec:org1b2f913}
+\label{sec:orgc84fee6}
 \section{Adding lists to the language}
-\label{sec:orgc66e750}
+\label{sec:orgdc15afd}
 \subsection{how generic is your generic?}
-\label{sec:orge4b9b0c}
+\label{sec:org5983f52}
 \subsection{how generic is your function?}
-\label{sec:orgec74a62}
+\label{sec:orgebc2d59}
 \subsection{adding foreach}
-\label{sec:org0fa1db1}
+\label{sec:org3434258}
 \subsection{adding list comprehension}
-\label{sec:org901be26}
+\label{sec:org3c42c55}
 \section{Typing and optimisation. part 2}
-\label{sec:org7867ea8}
+\label{sec:orgb2f2473}
 \section{Something about evaluation speed}
-\label{sec:org357d5d2}
+\label{sec:orgdb752f2}
 
 \subsection{environments again}
-\label{sec:orgfab1cb3}
+\label{sec:orgfa0fe8f}
 \subsection{tail call optimisation}
-\label{sec:org99c9968}
+\label{sec:org998ae13}
 \subsection{JZ, JNZ, JMP, Lisp \& WebAssembly}
-\label{sec:org5baf303}
+\label{sec:org03201be}
 \section{Adding types to the language}
-\label{sec:orgc82f10c}
+\label{sec:org1fd6ff2}
 \subsection{number vs float vs int32 vs int64}
-\label{sec:orgf09a2b5}
+\label{sec:orge7436f2}
 \subsection{function should know about types as well}
-\label{sec:org6dd318c}
+\label{sec:org7d19692}
 \section{Minimal required type theory}
-\label{sec:orgd690421}
+\label{sec:org04eddd9}
 \subsection{Why golang avoided generics for so long}
-\label{sec:org4ccdc22}
+\label{sec:orgdc5966d}
 \subsection{How to read typing expressions}
-\label{sec:org0444029}
+\label{sec:org62483c3}
 \section{type inferencing  the language. Simple version}
-\label{sec:orgefbf440}
+\label{sec:org5e06f00}
 \section{Generating WebAssembly for fun and profit}
-\label{sec:org1455f8f}
+\label{sec:org83163d6}
 \section{Generating JVM based things for fun and profit}
-\label{sec:org1bbc1fd}
+\label{sec:org49887f1}
 \section{type inferencing on steroids}
-\label{sec:org02f30c9}
+\label{sec:org0fa38f1}
 \subsection{How haskell, scala and friends work under the hood}
-\label{sec:orgde128cd}
+\label{sec:org59b1895}
 \end{document}
