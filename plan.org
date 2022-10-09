@@ -1681,46 +1681,6 @@ Adjusted unit test would look like this
 What else has changed?
 Well now we are more computationally efficient: 'x' is calculated only once, during the substitution phase.
 
-We can go even further - add flag 'computed' to the symbol, so we don't call 'evaluate' more than once.
-
-#+begin_src kotlin
- data class ESymbol(val name:String):Expression{
-// we've added the evaluated flag to know if this symbol has been already evaluated
-     var evaluated = false
-
-    override fun eval(env: Environment): Expression {
-        return this
-    }
-
-    override fun substitute(symbol: ESymbol, env: Environment): Expression {
-        if(symbol.name == name){
-
-            val initialExpression = env.get(symbol)
-            // if it has been evaluated, we just return the result
-            if(this.evaluated){
-                return initialExpression
-            }
-
-            // otherwise we are executing the evaluation
-            val evaluatedSymbol = initialExpression.eval(env)
-
-            // save the result in the environment
-            env.bindings[symbol] = evaluatedSymbol
-            // and updateing the evaluated flag
-            this.evaluated = true
-            return evaluatedSymbol
-        }
-        return this
-    }
-
-    override fun unparse(): String {
-        return name
-    }
-}
-#+end_src
-
-No matter how many times 'x' will be referenced during the calculations it will be calculated only once.
-This fact remains true for any variable we are substituting in the expression.
 
 Let's look at our test one more time.
 Can we improve something here?
@@ -1784,32 +1744,89 @@ let's change the evironment and see if our result changes as well.
 #+begin_src kotlin
     @Test
     fun testingSameExpressionDifferentEnvironment(){
+
+        val expression=parse("[add, x, x]").desugar()
+
         val firstEnv = Environment(hashMapOf(Pair(ESymbol("x"),
             parse("[add, 10, 33]").desugar())))
 
-        val firstExpression=parse("[add, x, x]").desugar()
-
         assertEquals("86",
-            firstExpression
-                .eval(firstEnv)
-                .unparse())
+            expression
+            .eval(firstEnv)
+            .unparse())
 
         val secondEnv = Environment(hashMapOf(Pair(ESymbol("x"),
             parse("[add, 20, 11]").desugar())))
-        val secondExpression=parse("[add, x, x]").desugar()
+
         assertEquals("62",
-            secondExpression
+                expression
                 .eval(secondEnv)
                 .unparse())
-
     }
 #+end_src
 
-We have two indentical expressions `[add, x, x]`
-and their evaluation results changes if we change the environment.
+We have single expression here :  `[add, x, x]`.
+But its value changes based on which environment it is being calculated in.
+Change the environment and the outcome will alter.
 Now our programs has become way more generic. Defining variables and evaluating them in differnt contexts is extremely powerful tool.
-We will use to work with functions. But not's let get ahead of ourselves.
 
+** Caching evaluation results in symbols
+Keen-eyed person might ask "Why can't we cache the computed result in the symbol itself?"
+
+So instead of
+#+begin_src kotlin
+ data class ESymbol(val name:String):Expression{
+
+    override fun eval(env: Environment): Expression {
+        return substitute(this, env)
+    }
+
+    override fun substitute(symbol: ESymbol, env: Environment): Expression {
+        if(symbol.name == name){
+
+            val initialExpression = env.get(symbol)
+            val evaluatedSymbol = initialExpression.eval(env)
+            env.bindings[symbol] = evaluatedSymbol
+            return evaluatedSymbol
+        }
+        return this
+    }
+
+#+end_src
+
+We would write something like this
+
+#+begin_src kotlin
+ data class ESymbol(val name:String):Expression{
+// adding flage to the symbol so we know it has been calculated
+var evaluated = false
+
+    override fun eval(env: Environment): Expression {
+        return substitute(this, env)
+    }
+
+    override fun substitute(symbol: ESymbol, env: Environment): Expression {
+        if(symbol.name == name){
+
+            val initialExpression = env.get(symbol)
+            // if we know that the symbol has been evaluated
+            // just return the value
+            if(this.evaluated){
+              return initialExpression
+            }
+            // otherwise evaluate it
+            val evaluatedSymbol = initialExpression.eval(env)
+            env.bindings[symbol] = evaluatedSymbol
+            // and toggle the evaluated flag
+            this.evaluated = true
+            return evaluatedSymbol
+        }
+        return this
+    }
+
+#+end_src
+
+Let's run our tests again.
 What whould happen if we use single expression in both tests?
 would it work? Any guesses?
 #+begin_src kotlin
@@ -1835,11 +1852,13 @@ would it work? Any guesses?
     }
 #+end_src
 
-Almost the same example. But now we have one expression evaluated in two different environments.
-And it fails on the second one with very strange error.
+Exactly the same test
+But now it it fails on the second asserttion with very strange error.
 
 #+begin_src kotlin
-java.lang.ClassCastException: class EAdd cannot be cast to class EInt (EAdd and EInt are in unnamed module of loader 'app')
+java.lang.ClassCastException: class EAdd cannot be cast
+    to class EInt (
+        EAdd and EInt are in unnamed module of loader app)
 
 	at EAdd.eval(Domain.kt:44)
 #+end_src
@@ -1849,7 +1868,19 @@ Why is that? How come that seemingly indentical tests behave differently?
 Maybe it depends on the environment itself? But no.
 If we change the place of `firstEnv` and `secondEnv` we would still get the same error.
 
-Something fishy is going on here. Let's have a closer look
+Something fishy is going on here. Why updatig the symbol would make such a difference?
+
+Ahh.. The `symbol` is part of the expression!
+So when we call it first time, the expression `[add, x, x]` is evaluated the usual way.
+But after the evaluation symbols `x` are treated as evaluated.
+So they are not evaluated second time.
+And when we change the environment, `x` is bound to `[add, 20,11]`, and at the same time `x` has flag `evaluated` set to true.
+Therefore we get an error.
+Addition cannot work with parameters other than integers. We need to evaluate them first. But our 'optimisation' made it impossible. We don't evaluate it anymore.
+Indeed premature optimisation is the root of all the evil.
+
+
+
 ** Mutalbe vs immutable variables
 * Adding variables to the mix
 **   should variables have a type?
