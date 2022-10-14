@@ -1,4 +1,6 @@
+#+AUTHOR: Oleg Taykalo
 #+title: Interpretation for lazy and curious
+#+subtitle: DRAFT v0.1
 * Interpretation. part 1
 The core functionality of interpreters might be distilled to two steps.
 1) Parse source code to some internal representation
@@ -1058,125 +1060,66 @@ We will get back to the sugaring concept later. It is very powerful idea worth r
   #+end_src
   Can you think of a way to make this evaluation possible touching only parsing?
 
-* Adding primitive functions to the language
-Now that we know how to add new functions as part of our sugaring process, we might ask ourselves :
-"Is it possible to define new functions without touching the host language"?
-Now every new defined function should have some correspondence in Kotlin.
-It would be nice to make it happen in yaml directly.
-
-Let's come up with the syntax for the function definition.
-It might have a lot of different flavors, but all of them should take care of few elements
-0. keyword for function definition
-1. function name
-2. function arguments
-3. body of the function
-
-We can start with the double function
-#+begin_src yaml
-fun   # keyword for the function definition
- - [double, x]  # function name and arguments
- - [add, x, x]  # body of the function
-#+end_src
-
-Of course short version would be preferrable for unit tests.
-#+begin_src yaml
-[fun, [double, x], [add, x, x]]
-#+end_src
-
-After defining *double* function, it is really tempting to introduce *quad* function
-
-#+begin_src yaml
-[fun, [quad, x], [double, [double, x]]]
-#+end_src
-functions should be able to call one another, otherwise what is the point in defining them?
-
-
-Functions without parameters should also be possible.
-
-#+begin_src yaml
-[fun, [const42], 42]
-#+end_src
-
-We will work with functions having single argument for now, and will deal with multiple arguments representation little bit later.
-
-** Dealing with function and argument names
-Now we have a good understanding how our function definitions would look like in yaml, let's think about how we gonna represent them in Kotlin.
-
-Before we start implementing anyting, we need to decide, how we can represent function and variables names.
-
-#+begin_src yaml
-[fun, [double, x], [add, x, x]]
-#+end_src
-
-When looking into this expression from yaml perspective `x` and `double` will be represented as strings.
-But semantically they should be different. They should represent some identifier, or a symbol if you wish.
-
-Therefore we need to expand our parser to support symbols.
-
-#+begin_src kotlin
-data class ESymbol(val value:String):Expression{
-    override fun eval(): Expression {
-        return this
-    }
-
-    override fun unparse(): String {
-        return value
-    }
-}
-
-#+end_src
-
-Here how our representation would look like
-#+begin_src kotlin
-data class EFunDef(val name:ESymbol, val argument:ESymbol, val body:Expression):Expression{
-    override fun eval(): Expression {
-        return this
-    }
-
-    override fun unparse(): String {
-        return "[fun, [${name.unparse()}, ${argument.unparse()}], ${body.unparse()}]"
-    }
-}
-
-#+end_src
-
-Function definition is evaluated to itself. It is just a delcaration of the function, it doesn't do anything at all.
-
-To make a function call, we need to have different structure. In some places it is called *function application*, i would use *function call*, since it is less academic and more commonly used
-#+begin_src kotlin
-data class EFunCall(val name:ESymbol, val argument:Expression):Expression{
-    override fun eval(): Expression {
-        TODO("Not yet implemented")
-    }
-
-    override fun unparse(): String {
-        return "[${name.unparse()}, ${argument.unparse()}]"
-    }
-
-}
-#+end_src
-
-We dont' know exactly how evaluation will work, but we can alreade expand our parser to support both function definitions and function calls.
-** Expanding parser for function definitions and calls
-When we are starting new implementation, and not totally sure what expected result is, we write tests.
-Parsing function definition looks like a good point.
-
-
-* Pros and cons of sugaring
-** performance hit
-** simplified runtime
-** Haskell core language
-** targeting degugaring
-** WebAssembly desugar
-** python desugar
-
 * Errors and strange things
+** Errors handling perspective
+So far we ignored all the errors. They can appear during parsing or evaluation.
+It would be nice to handle them. We cannot assume that our programs will have valid inputs, and won't produce any errors during the execution phase.
+Let us start with simple set of ideas.
+** Errors during the parsing phase
+During the parsing our result might be either `SugarExpression` or an error.
+Error might have different forms - wrong number of parameters to the function, unknown function, or something else.
+
+As always, we solve our problems by adding more layers of abstraciton.
+
+#+begin_src kotlin
+// this is interface for the errors we might add later
+interface IParserError{
+    val input : Any
+    val message: String
+    // we might have deeply nested errors, similar to stack trace
+    // would be nice to save them
+    val parent: IParserError?
+}
+// this defines parser process output
+data class ParserResult(
+    val success: Boolean,
+    val expression: SugarExpression?,
+    val error: IParserError? = null
+)
+#+end_src
+
+Now our `parse` function should return `ParserResult`.
+What wrong can happen during loading the yaml? well, a lot of things.
+We would simply treat them as an exception handling process.
+
+But first we need to define the concrete type of the parser erorr we will return
+#+begin_src kotlin
+data class YamlLoadError(
+    override val input: Any,
+    override val message: String,
+    override val parent: IParserError?
+    ) :IParserError
+#+end_src
+
+#+begin_src kotlin
+fun parse(input:String):ParserResult{
+    val yaml = Yaml()
+     try{
+        val script = yaml.load<Any>(input)
+        return convert(script)
+    }catch (e:Exception){
+        return parserFailure(YamlLoadError(input, e.message!!, null))
+    }
+}
+#+end_src
 ** adding division
 ** what should happen if we divide by zero?
 ** It's all about environment
 * Defining variables for fun and profit
+** Why do we need variables
 While working with the expressions, it might be useful to have some variables.
 for example, ability to compute something like this:
+#+caption: An example of multiplication with variable
 #+begin_src yaml
 [mul, x, 3]
 #+end_src
@@ -1880,8 +1823,120 @@ Addition cannot work with parameters other than integers. We need to evaluate th
 Indeed premature optimisation is the root of all the evil.
 
 
-
 ** Mutalbe vs immutable variables
+* Adding primitive functions to the language
+** How functions should look like
+Now that we know how to add new functions as part of our sugaring process, we might ask ourselves :
+"Is it possible to define new functions without touching the host language"?
+Now every new defined function should have some correspondence in Kotlin.
+It would be nice to make it happen in yaml directly.
+
+Let's come up with the syntax for the function definition.
+It might have a lot of different flavors, but all of them should take care of few elements
+0. keyword for function definition
+1. function name
+2. function arguments
+3. body of the function
+
+We can start with the double function
+#+begin_src yaml
+fun   # keyword for the function definition
+ - [double, x]  # function name and arguments
+ - [add, x, x]  # body of the function
+#+end_src
+
+Of course short version would be preferrable for unit tests.
+#+begin_src yaml
+[fun, [double, x], [add, x, x]]
+#+end_src
+
+After defining *double* function, it is really tempting to introduce *quad* function
+
+#+begin_src yaml
+[fun, [quad, x], [double, [double, x]]]
+#+end_src
+functions should be able to call one another, otherwise what is the point in defining them?
+
+
+Functions without parameters should also be possible.
+
+#+begin_src yaml
+[fun, [const42], 42]
+#+end_src
+
+We will work with functions having single argument for now, and will deal with multiple arguments representation little bit later.
+
+** Dealing with function and argument names
+Now we have a good understanding how our function definitions would look like in yaml, let's think about how we gonna represent them in Kotlin.
+
+Before we start implementing anyting, we need to decide, how we can represent function and variables names.
+
+#+begin_src yaml
+[fun, [double, x], [add, x, x]]
+#+end_src
+
+When looking into this expression from yaml perspective `x` and `double` will be represented as strings.
+But semantically they should be different. They should represent some identifier, or a symbol if you wish.
+
+Therefore we need to expand our parser to support symbols.
+
+#+begin_src kotlin
+data class ESymbol(val value:String):Expression{
+    override fun eval(): Expression {
+        return this
+    }
+
+    override fun unparse(): String {
+        return value
+    }
+}
+
+#+end_src
+
+Here how our representation would look like
+#+begin_src kotlin
+data class EFunDef(val name:ESymbol, val argument:ESymbol, val body:Expression):Expression{
+    override fun eval(): Expression {
+        return this
+    }
+
+    override fun unparse(): String {
+        return "[fun, [${name.unparse()}, ${argument.unparse()}], ${body.unparse()}]"
+    }
+}
+
+#+end_src
+
+Function definition is evaluated to itself. It is just a delcaration of the function, it doesn't do anything at all.
+
+To make a function call, we need to have different structure. In some places it is called *function application*, i would use *function call*, since it is less academic and more commonly used
+#+begin_src kotlin
+data class EFunCall(val name:ESymbol, val argument:Expression):Expression{
+    override fun eval(): Expression {
+        TODO("Not yet implemented")
+    }
+
+    override fun unparse(): String {
+        return "[${name.unparse()}, ${argument.unparse()}]"
+    }
+
+}
+#+end_src
+
+We dont' know exactly how evaluation will work, but we can alreade expand our parser to support both function definitions and function calls.
+** Expanding parser for function definitions and calls
+When we are starting new implementation, and not totally sure what expected result is, we write tests.
+Parsing function definition looks like a good point.
+
+
+* Pros and cons of sugaring
+** performance hit
+** simplified runtime
+** Haskell core language
+** targeting degugaring
+** WebAssembly desugar
+** python desugar
+
 * Adding variables to the mix
 **   should variables have a type?
 ** adding environment to our expressions
