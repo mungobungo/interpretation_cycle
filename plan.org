@@ -1065,57 +1065,286 @@ We will get back to the sugaring concept later. It is very powerful idea worth r
 So far we ignored all the errors. They can appear during parsing or evaluation.
 It would be nice to handle them. We cannot assume that our programs will have valid inputs, and won't produce any errors during the execution phase.
 Let us start with simple set of ideas.
-** Errors during the parsing phase
-Errors might occure during different phases of the interpreation.
-We might face them during the parsing, or during the evaluation.
 
-During the parsing our result might be either `SugarExpression` or an error.
-Error might have different forms - wrong number of parameters to the function, unknown function, or something else.
+Errors can happend during any phase of the evaluation. It can be parsing, or it can be evaluation.
 
-As always, we solve our problems by adding more layers of abstraciton.
+Our approcah would be generic anough to cover them both.
+
 
 #+begin_src kotlin
-// this is interface for the errors we might add later
-interface IParserError{
+interface ICoreError{
     val input : Any
     val message: String
-    // we might have deeply nested errors, similar to stack trace
-    // would be nice to save them
-    val parent: IParserError?
+
 }
-// this defines parser process output
-data class ParserResult(
-    val success: Boolean,
-    val expression: SugarExpression?,
-    val error: IParserError? = null
-)
 #+end_src
 
-Now our `parse` function should return `ParserResult`.
-What wrong can happen during loading the yaml? well, a lot of things.
-We would simply treat them as an exception handling process.
+Using 'input' field we will cover the input that produced the error, and the message can add a concrete error we would like to produce.
 
-But first we need to define the concrete type of the parser erorr we will return
+
+Now we can expand our `parse` function to handle errors there.
+
+Previously our parsing functions looked like this:
+#+begin_src kotlin
+fun parse(input:String): SugarExpression
+fun convert(obj:Any): SugarExpression
+#+end_src
+
+
+Now our return result should handle both the parsing errors, and successful cases.
+Let us introduce simple wrapper object that could take care of this situation.
+
+
+#+begin_src kotlin
+data class CoreResult<T>(
+    val success: Boolean, // tells us if result was successful
+    val value: T?,  // nullable value, can tell us if result of the calculation was successful
+    val error: ICoreError? // error in case our process failed for any reason
+
+)
+
+#+end_src
+Instead of returning pure SugarExpression from parsing, now we would return `CoreResult<SugarExpression>`
+
+For example
+#+begin_src kotlin
+SugarInt(10)
+#+end_src
+
+will become
+#+begin_src kotlin
+CoreResult<SugarInt>(true, SugarInt(10), null)
+#+end_src
+
+This  looks little bit too long. So some helper functions might be of use here.
+
+#+begin_src kotlin
+fun parserSuccess(expression: SugarExpression) : CoreResult<SugarExpression>{
+    return CoreResult(true, expression, null)
+}
+#+end_src
+
+Our previous example :
+#+begin_src kotlin
+
+CoreResult<SugarInt>(true, SugarInt(10), null)
+
+// vs
+
+parserSuccess(SugarInt(10))
+#+end_src
+
+Little bit longer, but it is all for the greater good.
+
+
+Now we know how to return successful values from the parsing, what about errors?
+
+The first error I can think of during parsing is getting malformed yaml as an input.
+
 #+begin_src kotlin
 data class YamlLoadError(
     override val input: Any,
     override val message: String,
-    override val parent: IParserError?
-    ) :IParserError
+
+    ) :ICoreError
 #+end_src
 
+Small helper function would also be userful here.
 #+begin_src kotlin
-fun parse(input:String):ParserResult{
+fun parserFailure(error: ICoreError): CoreResult<SugarExpression>{
+    return CoreResult(false, null, error)
+}
+#+end_src
+
+And our `parse` would need to change to be like this:
+#+begin_src kotlin
+fun parse(input:String):CoreResult<SugarExpression>{
     val yaml = Yaml()
-     try{
+    return try{
         val script = yaml.load<Any>(input)
-        return convert(script)
-    }catch (e:Exception){
-        return parserFailure(YamlLoadError(input, e.message!!, null))
+        convert(script)
+    }catch (e:Exception){ // wrapping exception to our CoreResult
+        parserFailure(YamlLoadError(input, e.message!!))
     }
 }
 #+end_src
-** adding division
+Now we are safe in terms of handling wrong inputs. But what about the situation when the input is valid yaml, but doesn't make sense in terms of our language?
+For example
+#+begin_src yaml
+[add, [some_nonsence, 2,3], 3]
+#+end_src
+
+We know that first element of the list is our built-in primitive. Let's define the error class for this situation.
+
+#+begin_src kotlin
+data class UnsupportedPrimitiveError(
+    override val input: Any,
+    override val message: String,
+    ) : ICoreError
+
+#+end_src
+
+We are good to go now.
+
+#+begin_src kotlin
+fun convert(obj:Any):CoreResult<SugarExpression>{
+   if(obj is Int){
+       return  parserSuccess( SugarInt(obj))
+   }
+#+end_src
+
+Basic objects just need to be wrapped in `parserSuccess`. Nothing to see here.
+
+But what about more complex operations? Addition, multiplication?
+
+#+begin_src kotlin
+
+if(operation == "add"){
+            val left = convert(obj[1])
+// if our left parameter produced and error during parsing
+// it doesn't make sense to continue the parser process
+// we can just do an arly exit
+            if(!left.success){
+// if result is not success - it is an error, so just return it
+                return left
+            }
+            val right = convert(obj[2])
+            // early exit here as well
+            if(!right.success){
+                return right
+            }
+
+            // at this moment we know that both left and right
+            // are valid results.
+            // So we can safely get their values, not fearing NullReferenceException
+            return parserSuccess( SugarAdd(left.value!!, right.value!!))
+        }
+        if(operation =="mul"){
+            val left = convert(obj[1])
+            if(!left.success){
+                return left
+            }
+            val right = convert(obj[2])
+            if(!right.success){
+                return right
+            }
+            return parserSuccess( SugarMul(left.value!!, right.value!!))
+        }
+#+end_src
+
+This approach added quite some checks during the parsing process, but also gives a lot of control over how errors are handled.
+
+By the way, now it is time to remove that `SugarInt(-42)` from our parsing.
+
+#+begin_src kotlin
+    // return SugarInt(-42)
+
+    return parserFailure(UnsupportedPrimitiveError( obj,
+        "unsupported primitive `$obj` during parsing"))
+#+end_src
+
+It is clear what was the root cause of the error, not just some random -42 as a result.
+
+As you might've guessed such a change would require refactoring of our tests.
+
+#+begin_src kotlin
+@Test
+    fun testSimpleAdd(){
+        //assertEquals(SugarAdd(SugarInt(3), SugarInt(5)), parse("[add, 3, 5]"))
+        assertEquals(SugarAdd(SugarInt(3), SugarInt(5)), parse("[add, 3, 5]").value!!)
+    }
+#+end_src
+
+Rinse and repeat 40 times.
+** Handling errors in evaluation
+Parsing is not the only place where errors can happen. One can argue that most of the errors are happening in the runtime. Who am I to disagree?
+
+We are gonna change our `eval` function the same way we did it for the parsing.
+
+#+begin_src kotlin
+interface Expression{
+    fun eval():Expression
+#+end_src
+
+would become
+
+#+begin_src kotlin
+
+
+
+interface Expression{
+
+    fun eval():CoreResult<Expression>
+#+end_src
+
+As it was with parsing the basic types are easy to change.
+
+#+begin_src kotlin
+data class EInt(val value:Int):Expression {
+    override fun eval(): CoreResult<Expression> {
+        return evalSuccess(this)
+    }
+#+end_src
+
+We don't expect any errors here at all.
+
+But when it comes to ``, plot thickens a bit.
+
+#+begin_src kotlin
+data class EMul(val a:Expression, val b:Expression): Expression {
+
+
+
+    override fun eval(): CoreResult<Expression> {
+
+        // type error here
+        val left = a.eval() as EInt
+        if (left.value == 0){
+            return evalSuccess(zeroInt)
+        }
+
+       // and here as well
+        val right = b.eval() as EInt
+        return EInt(left.value * right.value)
+    }
+#+end_src
+
+Now eval returns `CoreResult<Expression>`, so we cannot cast it easily to `EInt`.
+Moreover, we cannot be even sure that our result is correct one.
+Evaluation should be changed to replicate this information.
+
+First let's deal with the situation in case our evaluation result is not successfull one.
+#+begin_src kotlin
+data class EMul(val left:Expression, val right:Expression): Expression {
+
+override fun eval(): CoreResult<Expression> {
+
+    // evaluate left argument
+        val leftResult = left.eval()
+// early exit if not successful
+        if(!leftResult.success){
+
+            return leftResult
+        }
+
+        val left = leftResult.value!! as EInt
+        if (left.value == 0){
+            return evalSuccess(zeroInt)
+        }
+// do the same to the right argument
+        val rightResult = right.eval()
+        if(!rightResult.success){
+            return rightResult
+        }
+
+        val right = rightResult.value!! as EInt
+
+        // Do not forget to wrap EInt into CoreResult<Expression> type
+        return evalSuccess(EInt(left.value * right.value))
+    }
+#+end_src
+
+
 ** what should happen if we divide by zero?
 ** It's all about environment
 * Defining variables for fun and profit

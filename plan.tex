@@ -1,4 +1,4 @@
-% Created 2022-10-21 Fri 11:57
+% Created 2022-10-21 Fri 15:58
 % Intended LaTeX compiler: pdflatex
 \documentclass[11pt]{article}
 \usepackage[utf8]{inputenc}
@@ -12,7 +12,6 @@
 \usepackage{amssymb}
 \usepackage{capt-of}
 \usepackage{hyperref}
-\usepackage{minted}
 \author{Oleg Taykalo}
 \date{\today}
 \title{Interpretation for lazy and curious\\\medskip
@@ -22,7 +21,7 @@
  pdftitle={Interpretation for lazy and curious},
  pdfkeywords={},
  pdfsubject={},
- pdfcreator={Emacs 28.2 (Org mode 9.6)}, 
+ pdfcreator={Emacs 27.2 (Org mode 9.6)}, 
  pdflang={English}}
 \begin{document}
 
@@ -30,7 +29,7 @@
 \tableofcontents
 
 \section{Interpretation. part 1}
-\label{sec:org7bca529}
+\label{sec:org1cdda27}
 The core functionality of interpreters might be distilled to two steps.
 \begin{enumerate}
 \item Parse source code to some internal representation
@@ -40,25 +39,25 @@ Here I will do my best to skip as much as possible of the first one.
 You dont' need to know quantum physics to be able to swim.
 
 \subsection{Can you do it?}
-\label{sec:orgcae194e}
+\label{sec:orga53b4c3}
 When talking about interpretation  most of the people start thinking about complex things.
 register allocation, memory management, grammars and DFAs.
 I will try to keep it simple.
 As simple as possible without loosing core of the essence.
 Let's assume you have a yaml file
-\begin{minted}[]{yaml}
+\begin{verbatim}
 bold
 - some text
 - and more text
-\end{minted}
+\end{verbatim}
 
 How hard would that be to transform this yaml to the html?
-\begin{minted}[]{html}
+\begin{verbatim}
 <b>
   <p>some text</p>
   <p> and more text></p>
 </b>
-\end{minted}
+\end{verbatim}
 
 My guess would be that majority of the developers won't have troubles with doing so.
 We're just transforming on tree structure to another tree structure.
@@ -66,7 +65,7 @@ We're just transforming on tree structure to another tree structure.
 And this is the essense of interpretation. We're taking one tree structure and converting it to another tree structure.
 If you can convert yaml to html, you're good to go.
 \section{Parsing and other friends}
-\label{sec:org83cb9cf}
+\label{sec:orgf559178}
 Most of the compilers and interpreters books start with parsing.
 You neeed to investigate what DFA is, how it is different from NFA, and why regular expressions are not always the best choice.
 Then you will follow on grammars. Context free grammars, left recursion elimination and so on.
@@ -75,99 +74,99 @@ This usually happens 200-300 pages into the book. And while this is very importa
 Therefore approach in this book will take us as fast as possible to the actual interpretation, skipping all unnecessary steps if possible.
 To begin with we will start with arithmetic expressions.
 \subsection{The simplest expressions you can think of}
-\label{sec:org4fbc0f3}
+\label{sec:orgc7dba6b}
 Implementing anything on JVM starts with interfaces.
 let's us to the same and implement your first Expression
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 interface Expression
-\end{minted}
+\end{verbatim}
 
 It's not much, but we will improve it really fast. Just stay tuned.
 \subsubsection{Integer values}
-\label{sec:org9b02cdf}
+\label{sec:org08d78c8}
 It is hard to do any computations when you don't have numbers.
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 data class EInt(val v:Int):Expression
-\end{minted}
+\end{verbatim}
 For now integers are more than enough for us to have. Adding boolean and float values will follow.
 \subsubsection{Addition}
-\label{sec:orgda13e10}
+\label{sec:orgc78ed06}
 Adding additional addition to the mix would not be a problem
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 data class EAdd(val a:EInt, val b:EInt): Expression
 
-\end{minted}
+\end{verbatim}
 \subsubsection{Multiplication}
-\label{sec:orga9d6bcc}
+\label{sec:org7b78e81}
 The same goes for the multiplication
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 data class EMul(val a:EInt, val b:EInt): Expression
-\end{minted}
+\end{verbatim}
 \subsection{What else can we add to the expressions}
-\label{sec:orgc20e9de}
+\label{sec:orgc236dc6}
 \subsection{Representing expressions in a code}
-\label{sec:org4682ab1}
+\label{sec:org93751a2}
 Now we have all the required components to actually start calulating.
 How would expression
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 2+2
-\end{minted}
+\end{verbatim}
 would look in our data class representation?
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 EAdd(2,2)
-\end{minted}
+\end{verbatim}
 Multiplication would not be that different
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 5*5
-\end{minted}
-\begin{minted}[]{kotlin}
+\end{verbatim}
+\begin{verbatim}
 EMul(5, 5)
-\end{minted}
+\end{verbatim}
 And if we want to express something more complex, we will just nest them
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 (2+2)*5*5
-\end{minted}
-\begin{minted}[]{kotlin}
+\end{verbatim}
+\begin{verbatim}
 EMul(5, EMul(5, EAdd(2 , 2)))
-\end{minted}
+\end{verbatim}
 
 \section{Evaluating expressions for fun and profit}
-\label{sec:orgb825705}
+\label{sec:orge576e22}
 \subsection{Evaluating integers. As simple as it gets}
-\label{sec:org8e0ff97}
+\label{sec:orgd65150c}
 Having expresisons is nice, but why do we need them if we can't calculate them on the fly?
 as TDD teaches us, you whould start from the test first.
 So be it.
 You never can be too slow when doing unit tests. Good coverage for the basics will let you know details of your code workings. As well will save you hours of debugging later on.
 
-\begin{minted}[]{kotlin}
+\begin{verbatim}
     @Test
     fun testSimpleInteger(){
         assertEquals(EInt(5), eval(EInt(5)))
         assertEquals(EInt(-5), eval(EInt(-5)))
         assertEquals(EInt(0), eval(EInt(0)))
     }
-\end{minted}
+\end{verbatim}
 
 What would be the easiest implementation of \textbf{eval} to make it run?
 I came up with this one.
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 
 fun eval( e:Expression): Expression{
     return e;
 }
-\end{minted}
+\end{verbatim}
 Probably would not require a lot of effort to understand what is happening here.
 and it also makes our tests green.
 
 
 \subsection{Evaluating addition}
-\label{sec:orgf169ae3}
+\label{sec:org0c67985}
 Now we are facing our first real challenge.
 How can we evaluate addition?
 
 As usual, let us start with the unit tests, so we don't have a suprises later on.
-\begin{minted}[]{kotlin}
+\begin{verbatim}
  @Test
     fun testSimpleAddition(){
         assertEquals(EInt(5), eval(EAdd(EInt(5), EInt(0))))
@@ -176,19 +175,19 @@ As usual, let us start with the unit tests, so we don't have a suprises later on
         assertEquals(EInt(7), eval(EAdd(EInt(-3), EInt(10))))
         assertEquals(EInt(6), eval(EAdd(EInt(10), EInt(-4))))
     }
-\end{minted}
+\end{verbatim}
 
 obviously if we try to run them now, we would have an error
 
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 Expected :EInt(v=5)
 Actual   :EAdd(a=EInt(v=5), b=EInt(v=0))
-\end{minted}
+\end{verbatim}
 By the way - this is one of the reasons Kotlin is a nice language for these kind of exercises.
 You don't need to write a lot of boilerplates for the \textbf{data class}, string representation looks reasonalbe, and saves some mental space for more important things.
 
 We have a red test. What is the simplest way to make it green?
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 
 fun eval( e:Expression): Expression{
     if(e is EAdd){
@@ -196,14 +195,14 @@ fun eval( e:Expression): Expression{
     }
     return e
 }
-\end{minted}
+\end{verbatim}
 
 would this be enough?
 
 Oh wow, tests are green now. But i am not big fan of 'e.a.v' looks very obscure
 Green test allows us to do refactoring bit.
 
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 data class EInt(val value:Int):Expression
 
 fun eval( expression:Expression): Expression{
@@ -212,15 +211,15 @@ fun eval( expression:Expression): Expression{
     }
     return expression
 }
-\end{minted}
+\end{verbatim}
 
 Are we done with the addition?
 
 What about more complex example?
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 1 + 2 + 3 => 6
 assertEquals(EInt(6), eval( EAdd(EInt(1), EAdd( EInt(2),EInt(3)) )))
-\end{minted}
+\end{verbatim}
 
 And our compiler complains.
 \begin{verbatim}
@@ -228,15 +227,15 @@ Type mismatch: inferred type is EAdd but EInt was expected
 \end{verbatim}
 
 Why is that? Oh yes. in our definition we are expecitng that \textbf{EAdd} expects integers as a parameters.
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 data class EAdd(val a:EInt, val b:EInt): Expression
-\end{minted}
+\end{verbatim}
 But now we are trying to pass \textbf{EAdd} as second paramter. Of course we should have an error here.
 
 As usual with TDD approach we fixe it with the simplest way possible
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 data class EAdd(val a:Expression, val b:Expression): Expression
-\end{minted}
+\end{verbatim}
 
 Hopefully it will solve our issue.
 
@@ -244,7 +243,7 @@ But apparently it would not.
 
 We get yet another nasty error in our \textbf{eval} function
 
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 fun eval( expression:Expression): Expression{
     if(expression is EAdd){
         return EInt(expression.a.value + expression.b.value)
@@ -254,13 +253,13 @@ fun eval( expression:Expression): Expression{
     }
     return expression
 }
-\end{minted}
+\end{verbatim}
 
 Any ideas?
 Sure. \textbf{value} is a field of and integer, and now EAdd works with generic expressions, which might not have a value.
 So we need to come up with a way of converting addition result to values.
 
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 fun eval( expression:Expression): Expression{
     if(expression is EAdd){
         val left: EInt = eval(expression.a) as EInt
@@ -269,7 +268,7 @@ fun eval( expression:Expression): Expression{
     }
     return expression
 }
-\end{minted}
+\end{verbatim}
 This expression is worth to take a closer look.
 To execute and addition, we need to be sure that both our parameters are integers.
 At the same time when we call \textbf{eval} we would get the \textbf{Expression} as a result.
@@ -281,10 +280,10 @@ What will happen if during \textbf{eval} some error will be raised?
 These are very good questions. and we will get to them later. For now let us keep our focus on general picture.
 
 \subsection{Evaluating multiplication}
-\label{sec:orgf12e35a}
+\label{sec:org62b4df1}
 After spending so much time on evaluating addition, expanding our expressions to support multiplication is straighforward.
 But first - tests.
-\begin{minted}[]{kotlin}
+\begin{verbatim}
     @Test
     fun testSimpleMultiplication()
     {
@@ -294,10 +293,10 @@ But first - tests.
         assertEquals(EInt(42), eval(EMul(EInt(42), EInt(1))))
         assertEquals(EInt(4), eval(EMul(EInt(2), EInt(2))))
     }
-\end{minted}
+\end{verbatim}
 
 and implementation
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 fun eval( expression:Expression): Expression{
     if(expression is EAdd){
         val left: EInt = eval(expression.a) as EInt
@@ -311,22 +310,22 @@ fun eval( expression:Expression): Expression{
     }
     return expression
 }
-\end{minted}
+\end{verbatim}
 
 As you can see, the implementation is almost identical. The only difference we have іs the actual operation.
 
 Let's add few more tests to make sure it works if we mix addition and multiplication
-\begin{minted}[]{kotlin}
+\begin{verbatim}
     @Test
     fun testComplicatedMultiplication() {
         assertEquals(EInt(10), eval(EMul(EMul(EInt(1), EInt(5)), EInt(2))))
         assertEquals(EInt(12), eval(EMul(EAdd(EInt(1), EInt(5)), EInt(2))))
     }
 
-\end{minted}
+\end{verbatim}
 All the tests are green. Nice.
 In less than 20 lines of code we have working caclulator that can add and multiply arbitrary numbers.
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 interface Expression
 data class EInt(val value:Int):Expression
 data class EMul(val a:Expression, val b:Expression): Expression
@@ -346,18 +345,18 @@ fun eval( expression:Expression): Expression{
     return expression
 }
 
-\end{minted}
+\end{verbatim}
 
 
 \subsection{Sidenotes}
-\label{sec:orgfecf4f0}
+\label{sec:orga50d0c2}
 \subsubsection{Moving evaluation into each expression}
-\label{sec:org1196c87}
+\label{sec:orgdc6f2df}
 At this point all our evaluation is sitting within one \textbf{eval} function.
 If we gonna add more expressions to the interpreter, amount of \textbf{if} statements will grow.
 This can be avoided by extracting specific parts of the code, and moving them to expressions.
 The result would look like this:
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 interface Expression{
     fun eval():Expression
 }
@@ -383,19 +382,19 @@ data class EAdd(val a:Expression, val b:Expression): Expression {
 
     }
 }
-\end{minted}
+\end{verbatim}
 
 It would require to change the test implementation as well.
 
-\begin{minted}[]{kotlin}
+\begin{verbatim}
  assertEquals(EInt(12), (EMul(EAdd(EInt(1), EInt(5)), EInt(2))).eval())
 
-\end{minted}
+\end{verbatim}
 \subsubsection{Simple optimisations}
-\label{sec:org94c500d}
+\label{sec:org4ce2b05}
 You might agree that multiplying anything by zero would not help a lot.
 We can include it in our evaluation of \textbf{EMul}
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 data class EMul(val a:Expression, val b:Expression): Expression {
     override fun eval(): Expression {
         val left = a.eval() as EInt
@@ -406,11 +405,11 @@ data class EMul(val a:Expression, val b:Expression): Expression {
         return EInt(left.value * right.value)
     }
 }
-\end{minted}
+\end{verbatim}
 
 And if you agree that integers are immutable values, we can avoid creating new copy of the EInt every time during the evaluation
 
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 val zeroInt = EInt(0)
 
 data class EMul(val a:Expression, val b:Expression): Expression {
@@ -423,18 +422,18 @@ data class EMul(val a:Expression, val b:Expression): Expression {
         return EInt(left.value * right.value)
     }
 }
-\end{minted}
+\end{verbatim}
 \section{The simplest parser you can think of}
-\label{sec:org2520d49}
+\label{sec:org9244576}
 To make the whole parsing easy, let us reiterate what problem are we trying to solve.
 We need to take a string, and convert it to the expression.
 It can be expressed in a test.
-\begin{minted}[]{kotlin}
+\begin{verbatim}
     @Test()
     fun testSimpleInt(){
         assertEquals(EInt(42), parse("42"))
     }
-\end{minted}
+\end{verbatim}
 
 As you might remember - we are lazy. So we will do something that would allow us to simplify things.
 To use a library and a format a lot of people using now.
@@ -442,9 +441,9 @@ The most popular programming language of the century.
 YAML.
 
 \subsection{Parsing integers with yaml}
-\label{sec:orgcf838f5}
+\label{sec:org2544809}
 To make it work we would need to add dependency to the great \textbf{snakeyaml} library
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 dependencies {
     // https://mvnrepository.com/artifact/org.yaml/snakeyaml
     implementation("org.yaml:snakeyaml:1.32")
@@ -452,11 +451,11 @@ dependencies {
     testImplementation(kotlin("test"))
     testImplementation("org.junit.jupiter:junit-jupiter:5.9.0")
 }
-\end{minted}
+\end{verbatim}
 
 having such a useful tool makes our lives easy.
 
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 import org.yaml.snakeyaml.Yaml
 
 fun parse(input:String):Expression{
@@ -464,74 +463,74 @@ fun parse(input:String):Expression{
     val script = yaml.load<Any>(input)
     return EInt(script as Int)
 }
-\end{minted}
+\end{verbatim}
 
 We cannot parse anything but integers now, but at least our tests are green. Isn't that great?
 \subsection{Expanding yaml expressions to support addition}
-\label{sec:org3484534}
+\label{sec:orgebb4fb2}
 If you remember, our goal is to convert from strings to expressions as easy as possible.
 To make it happen, the language we would use should be very similar to the expressions we have.
 
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 EAdd(EInt(3), EInt(5))
-\end{minted}
+\end{verbatim}
 
 might be represented in yaml as
-\begin{minted}[]{yaml}
+\begin{verbatim}
 add
   - 3
   - 5
-\end{minted}
+\end{verbatim}
 
 And more complex expresison
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 EMul(EInt(10), EAdd(EInt(1), EInt(2)))
-\end{minted}
+\end{verbatim}
 Will have a form
-\begin{minted}[]{yaml}
+\begin{verbatim}
 mul
   - 10
   - add
     - 1
     - 2
-\end{minted}
+\end{verbatim}
 
 Obviously this is good enough if we want to use it as part of yaml files.
 But when you adding such an expression to the unit test, you would suffer.
 Suffering should be optional, and to removing it we will utilise little known feature of Yaml, called \url{https://yaml.org/spec/1.2.2/\#chapter-7-flow-style-productions}
 
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 EAdd(EInt(3), EInt(5))
-\end{minted}
+\end{verbatim}
 becomes
-\begin{minted}[]{yaml}
+\begin{verbatim}
 [add, 3, 5]
-\end{minted}
+\end{verbatim}
 
 and
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 EMul(EInt(10), EAdd(EInt(1), EInt(2)))
-\end{minted}
+\end{verbatim}
 is represented as
 
-\begin{minted}[]{yaml}
+\begin{verbatim}
 [mul, 10, [add, 1, 2]]
-\end{minted}
+\end{verbatim}
 I kinda like it. It is shorter, and represents our internal structure pretty much
 \subsection{parsing yaml with predefined expressions}
-\label{sec:org7534479}
+\label{sec:orgb1b081d}
 Test goes first
-\begin{minted}[]{kotlin}
+\begin{verbatim}
    @Test()
     fun testSimpleAdd(){
         assertEquals(EAdd(EInt(3), EInt(5)), parse("[add, 3, 5]"))
     }
-\end{minted}
+\end{verbatim}
 
 When \textbf{snakeyaml} parses flow-style expressions, it returns ArrayList.
 So all we need to do is convert ArrayList to expression we want
 
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 fun parse(input:String):Expression{
     val yaml = Yaml()
     val script = yaml.load<Any>(input)
@@ -551,7 +550,7 @@ fun convert(obj:Any):Expression{
     }
     return EInt(-42) // since we don't have errors now, return something strange
 }
-\end{minted}
+\end{verbatim}
 
 Essentially what we are doing here is very similar to the eval fucntion we defined previously.
 Eval takes Expression as input and returns Integer values.
@@ -563,7 +562,7 @@ But as was said previousy - let us focus on successful flow first, taking care o
 
 Surprisingly enough, this implementation makes our test green.
 Let's see if we try to parse more complicated expression.
-\begin{minted}[]{kotlin}
+\begin{verbatim}
     @Test
     fun testComplicatedAdd(){
         assertEquals(
@@ -571,13 +570,13 @@ Let's see if we try to parse more complicated expression.
             parse("[add, [add, 3,5], 42]"))
     }
 
-\end{minted}
+\end{verbatim}
 
 Green as well. Nice work!
 \subsection{Adding multiplication to the mix}
-\label{sec:org71daaa5}
+\label{sec:org86fff36}
 Now we know what to expect, so we will add both tests from the beginning
-\begin{minted}[]{kotlin}
+\begin{verbatim}
     @Test
     fun testSimpleMultiplication(){
         assertEquals(EMul(EInt(11), EInt(33)), parse("[mul, 11, 33]"))
@@ -588,10 +587,10 @@ Now we know what to expect, so we will add both tests from the beginning
             EMul(EMul(EInt(3), EInt(5)), EInt(42)),
             parse("[mul, [mul, 3,5], 42]"))
     }
-\end{minted}
+\end{verbatim}
 
 Implementation of parser is really simple. Nothing new under the sun.
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 fun convert(obj:Any):Expression{
     ...
     if(obj is ArrayList<*>){
@@ -601,27 +600,27 @@ fun convert(obj:Any):Expression{
             val right = convert(obj[2])
             return EMul(left, right)
         }
-\end{minted}
+\end{verbatim}
 
 We have a parser for addition, and we have a parser for multiplication.
 Let's see how well they are working together.
-\begin{minted}[]{kotlin}
+\begin{verbatim}
     @Test
     fun testMulAndAdd(){
          assertEquals(
             EMul(EAdd(EInt(22), EInt(11)), EInt(44)),
             parse("[mul, [add, 22, 11], 44]"))
     }
-\end{minted}
+\end{verbatim}
 
 Tests are green. Feels great, isn't it?
 
 \subsection{Evaluating parsed expressions}
-\label{sec:org92e3166}
+\label{sec:orgd32d858}
 Now we have both parth of the story. We can take a string and convert it to an expression.
 We can take an expression and evaluate it.
 Let us add some more tests would confirm this fact.
-\begin{minted}[]{kotlin}
+\begin{verbatim}
     @Test
     fun testComplicatedExpressionWithParsing() {
         assertEquals(EInt(10), (EMul(EMul(EInt(1), EInt(5)), EInt(2))).eval())
@@ -629,27 +628,27 @@ Let us add some more tests would confirm this fact.
         assertEquals(EInt(12), (EMul(EAdd(EInt(1), EInt(5)), EInt(2))).eval())
         assertEquals(EInt(12), parse("[mul, [add, 1, 5], 2]").eval())
     }
-\end{minted}
+\end{verbatim}
 
 I specifically put original version here, so it is easy to compare complexity of expressions and amount of brackets.
 
 \subsection{One more touch}
-\label{sec:org13f96df}
+\label{sec:org34ac0bd}
 If you look closely on the previous test, you might wondered, why did we use \textbf{EInt(10)} instead of just \textbf{10}? How hard would that be to make it happen?
 
 Well, let's add one more operation, and call it \textbf{unparse}. It will take an expression and convert it to our yaml format. in such a way we will have the whole circle of life
 
 Let us extend our expression interface with \textbf{unparse} method
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 interface Expression{
     fun eval():Expression
     fun unparse():String
 }
-\end{minted}
+\end{verbatim}
 
 And expand our test cases for the parsing.
 Make sure that unparsing parsed expression should give the same result
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 
   @Test
     fun testSimpleIntUnparse(){
@@ -695,13 +694,13 @@ Make sure that unparsing parsed expression should give the same result
         assertEquals(yaml, parse(yaml).unparse())
     }
 
-\end{minted}
+\end{verbatim}
 
 Remember, the more tests you have, the less corner cases you should worry about.
 
 implementation is straightforward.
 
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 data class EInt(val value:Int):Expression {
     ...
     override fun unparse(): String {
@@ -722,14 +721,14 @@ data class EAdd(val a:Expression, val b:Expression): Expression {
         return "[add, ${a.unparse()}, ${b.unparse()}]"
     }
 }
-\end{minted}
+\end{verbatim}
 As expected, tests are passing.
 \subsection{Evaluating parsed expressions}
-\label{sec:orgba3e2c5}
+\label{sec:org43e3372}
 We took some detour to make the basics work. Now we know how to read yaml, interpret the contents of the yaml using intermediate representation, and save results back to the yaml. Which in turn can be read, interpreted and saved to yaml.
 
 But what is missing is some tests that confirm that our assumptions are correct.
-\begin{minted}[]{kotlin}
+\begin{verbatim}
  @Test
     fun testSimpleIntegerWithParsing() {
         assertEquals(EInt(5), parse("5").eval())
@@ -768,12 +767,12 @@ But what is missing is some tests that confirm that our assumptions are correct.
         assertEquals("10", parse("[mul, 1, [mul, 5, 2]]").eval().unparse())
         assertEquals("12", parse("[mul, 2, [add, 5, 1]]").eval().unparse())
     }
-\end{minted}
+\end{verbatim}
 
 In the last test you can see all the parts working together.
 And as you might have guessed, our tests are passing.
 \subsection{Food for thought}
-\label{sec:org27d5fd9}
+\label{sec:orga369c24}
 Parsing plays important role in the whole evaluation process. While we simplified it to the minimum, we still can improve it.
 
 For example - we have duplication while parsing addition and multiplication operations.
@@ -781,25 +780,25 @@ One way to make it better would be to add support to binary arithmetical operati
 But that would come at the cost of complicating our abstract syntax tree. As usual in the computer science - you cannot remove the complexity. You can just move it in some other place.
 
 Here's another puzzle for you. What should this expression be parsed into?
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 [mul, 0, [add, 11, 42]]
-\end{minted}
+\end{verbatim}
 
 One might argue it is obvious - result is
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 EMul(EInt(0), EAdd(EInt(11), EInt(42)))
-\end{minted}
+\end{verbatim}
 
 But equally good option is
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 EInt(0)
-\end{minted}
+\end{verbatim}
 
 Since we know that multiplication by zero would give us zero in the end, why bother creating complex expression?
 And as in previous example - we are simplifiying evaluation by complicating parsing.
 You cannot remove the complexity. You can just push it somewhere else.
 \subsection{Reflecting and Wrapping up}
-\label{sec:org718e3f0}
+\label{sec:orgae790df}
 It took some time and turns to get to this point.
 A lot of text, and a lot of explanations. But try to look at it from the different perspective.
 our parser is 26 lines long, and our interpreter is just 42 lines long.
@@ -807,7 +806,7 @@ In less than 100 lines we have fully functional interpreter, that can deal with 
 And load and save expressions to yaml.
 
 Let's look at our code in its full glory.
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 // Domain.kt
 interface Expression{
     fun eval():Expression
@@ -878,24 +877,24 @@ fun convert(obj:Any):Expression{
     }
     return EInt(-42)
 }
-\end{minted}
+\end{verbatim}
 \section{Core language, host language and a lot of sugar}
-\label{sec:orga7c9cf3}
+\label{sec:orgb8268e4}
 When implementing and interpreter you want to have ability to define new type of capabilites.
 At the same time you don't want to spend too much time refactoring base implementation.
 Changing Ast and tests for it, implementations, is very time consuming process.
 \subsection{core, host, sugared}
-\label{sec:org82d536e}
+\label{sec:org62df241}
 This can be avoided by introducing new level of abstration. As you know, you can solve every problem in IT by adding an additional level of abstraction.
 Let's call our arimetic language we have the core language. It is core of our interpreter, and we don't want to expose its internal for the customers.
 We would like to keep it as small as possible, so all refatoring and optimisations would have smaller blast radius.
 As for ease of use we can create new expressions, which we would call sugared expressions.
 They will be used as our interface, and should be converted to the core language to be interpreted
 \subsection{Adding sugar}
-\label{sec:orgd4d4931}
+\label{sec:org162a0aa}
 Let's say we want to add new operation to the mix \textbf{sub}, which stands for the substraction.
 how would it fit to our idea of sugared language?
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 interface SugarExpression{
     fun desugar():Expression
 }
@@ -918,14 +917,14 @@ data class SugarMul(val left:SugarExpression, val right:SugarExpression): SugarE
        return EMul(left.desugar(), right.desugar())
     }
 }
-\end{minted}
+\end{verbatim}
 Now it is pretty much replicating what with had with the usual expression.
 Main difference might be that we don't evaluate anything here. We're just converting Sugared expression to our core expressions.
 
 \subsubsection{Defining substraction}
-\label{sec:orgece83a8}
+\label{sec:orgb65c08d}
 Now we can extend our sugared languge with substraction function.
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 
 // Take a closer look at this method
 data class SugarSub(val left:SugarExpression, val right: SugarExpression):SugarExpression{
@@ -933,7 +932,7 @@ data class SugarSub(val left:SugarExpression, val right: SugarExpression):SugarE
        return EAdd(left.desugar(),  EMul(EInt(-1), right.desugar() ))
     }
 }
-\end{minted}
+\end{verbatim}
 
 Just have a look.
 We don't have substraction at our core language. But our customers might never know about it.
@@ -945,7 +944,7 @@ Our parser returns Expressions, not SugarExpressions. We need to change that.
 And add few more unit tests to the mix.
 
 our parser looks like this now
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 import org.yaml.snakeyaml.Yaml
 
 fun parse(input:String):SugarExpression{
@@ -977,10 +976,10 @@ fun convert(obj:Any):SugarExpression{
     }
     return SugarInt(-42)
 }
-\end{minted}
+\end{verbatim}
 
 our tests should be changed in quite a few places. For example, parsing should be updated
-\begin{minted}[]{kotlin}
+\begin{verbatim}
  @Test
     fun testComplicatedMultiplicationUnparse(){
         val yaml = "[mul, [mul, 3, 5], 42]"
@@ -997,11 +996,11 @@ our tests should be changed in quite a few places. For example, parsing should b
             SugarMul(SugarAdd(SugarInt(22), SugarInt(11)), SugarInt(44)).desugar().unparse())
         assertEquals(yaml, parse(yaml).desugar().unparse())
     }
-\end{minted}
+\end{verbatim}
 Do you see this beatuful pattern of parse -> desugar -> unparse
 
 Of course, evaluation tests should be changed as well
-\begin{minted}[]{kotlin}
+\begin{verbatim}
  @Test
     fun testComplicatedMultiplicationWithParsing() {
         assertEquals(EInt(10), parse("[mul, 1, [mul, 5, 2]]").desugar().eval())
@@ -1010,13 +1009,13 @@ Of course, evaluation tests should be changed as well
         assertEquals("10", parse("[mul, 1, [mul, 5, 2]]").desugar().eval().unparse())
         assertEquals("12", parse("[mul, 2, [add, 5, 1]]").desugar().eval().unparse())
     }
-\end{minted}
+\end{verbatim}
 
 they follow the same pattern more or less. parse -> desugar -> eval -> unparse
 
 Now that our little refactoring is done, we are in a good shape to add test for our substraction.
 
-\begin{minted}[]{kotlin}
+\begin{verbatim}
     @Test
     fun testMulAndSubUnparse(){
 
@@ -1027,69 +1026,69 @@ Now that our little refactoring is done, we are in a good shape to add test for 
             SugarMul(SugarSub(SugarInt(22), SugarInt(11)), SugarInt(44)).desugar().unparse())
         assertEquals(desugared, parse(yaml).desugar().unparse())
     }
-\end{minted}
+\end{verbatim}
 
 It is a good idea to test that evaluation of substraciton works as well.
 
-\begin{minted}[]{kotlin}
+\begin{verbatim}
     @Test
     fun testMulAndSubEvaluationWithParsing(){
         val yaml = "[mul, [sub, 22, 11], 44]"
         assertEquals("484", parse(yaml).desugar().eval().unparse())
     }
-\end{minted}
+\end{verbatim}
 
 We've just expanded our language with one more built-in function, wihout touching the core interpretation logic. And whast is even more interesting - the result of evaluation is correct.
 \subsection{Adding negation operation}
-\label{sec:org75c2e2f}
+\label{sec:org2ad0447}
 Now we can expand our primitive list by adding operation \textbf{neg} which should change the sight of the operation.
 
 Since we're working with the sugared operations, we can approach to this having this definition
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 data class SugarNeg(val value:SugarExpression):SugarExpression{
     override fun desugar(): Expression {
        return EMul(EInt(-1), value.desugar())
     }
 
 }
-\end{minted}
+\end{verbatim}
 
 Or we might go other way around.
 
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 data class SugarNeg2(val value:SugarExpression):SugarExpression{
     override fun desugar(): Expression {
        return SugarSub(SugarSub(value, value), value).desugar()
     }
 
 }
-\end{minted}
+\end{verbatim}
 
 Second one would not be the most efficient implementation, but would reduce our dependency on the core language. As you might see there's no core language structures besides \textbf{Expression} as return value.
 
 This is a great example of flexibility sugaring and desugaring brings to the table.
 
 If we implemented negation first, we might change our implementation of \textbf{sub} as well.
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 data class SugarSub2(val left:SugarExpression, val right:SugarExpression):SugarExpression{
     override fun desugar(): Expression {
        return EAdd(SugarNeg(left).desugar(), right.desugar())
     }
 }
-\end{minted}
+\end{verbatim}
 
 As you can see, sugaring gives a lot of flexibility towards how our functions are implemented.
 
 Let's finish our negation by adding some tests and parsing bits.
-\begin{minted}[]{kotlin}
+\begin{verbatim}
         if(operation =="neg"){
             val value = convert(obj[1])
             return SugarNeg(value)
         }
-\end{minted}
+\end{verbatim}
 
 and test cases for the parsing
-\begin{minted}[]{kotlin}
+\begin{verbatim}
     @Test
     fun testNegUnparse()
     {
@@ -1098,16 +1097,16 @@ and test cases for the parsing
         assertEquals(desugared, SugarNeg(SugarMul(SugarInt(2), SugarInt(10))).desugar().unparse())
         assertEquals(desugared, parse(yaml).desugar().unparse())
     }
-\end{minted}
+\end{verbatim}
 
 and for the evaluation as well
-\begin{minted}[]{kotlin}
+\begin{verbatim}
     @Test
     fun testNegationEvaluation(){
         val yaml = "[neg, [mul, [sub, 22, 11], 44]]"
         assertEquals("-484", parse(yaml).desugar().eval().unparse())
     }
-\end{minted}
+\end{verbatim}
 
 Remember, there's no such thing as too many tests, if they all make sense.
 
@@ -1115,88 +1114,219 @@ Remember, there's no such thing as too many tests, if they all make sense.
 We will get back to the sugaring concept later. It is very powerful idea worth revisiting.
 
 \subsection{Food for thought}
-\label{sec:org395f248}
+\label{sec:orgb88e71e}
 \begin{itemize}
 \item You want to add \textbf{uminus} operation, which is operates exactly like negation, but has different representation in yaml syntax.
-\begin{minted}[]{yaml}
+\begin{verbatim}
 [uminus, [mul, [sub, 22, 11]], 44]
-\end{minted}
+\end{verbatim}
 Can you think of a way to make this evaluation possible touching only parsing?
 \end{itemize}
 
 \section{Errors and strange things}
-\label{sec:orge66a45a}
+\label{sec:org45c9457}
 \subsection{Errors handling perspective}
-\label{sec:org628af42}
+\label{sec:org7ef0068}
 So far we ignored all the errors. They can appear during parsing or evaluation.
 It would be nice to handle them. We cannot assume that our programs will have valid inputs, and won't produce any errors during the execution phase.
 Let us start with simple set of ideas.
-\subsection{Errors during the parsing phase}
-\label{sec:orgf6a99de}
-During the parsing our result might be either `SugarExpression` or an error.
-Error might have different forms - wrong number of parameters to the function, unknown function, or something else.
 
-As always, we solve our problems by adding more layers of abstraciton.
+Errors can happend during any phase of the evaluation. It can be parsing, or it can be evaluation.
 
-\begin{minted}[]{kotlin}
-// this is interface for the errors we might add later
-interface IParserError{
+Our approcah would be generic anough to cover them both.
+
+
+\begin{verbatim}
+interface ICoreError{
     val input : Any
     val message: String
-    // we might have deeply nested errors, similar to stack trace
-    // would be nice to save them
-    val parent: IParserError?
+
 }
-// this defines parser process output
-data class ParserResult(
-    val success: Boolean,
-    val expression: SugarExpression?,
-    val error: IParserError? = null
+\end{verbatim}
+
+Using 'input' field we will cover the input that produced the error, and the message can add a concrete error we would like to produce.
+
+
+Now we can expand our `parse` function to handle errors there.
+
+Previously our parsing functions looked like this:
+\begin{verbatim}
+fun parse(input:String): SugarExpression
+fun convert(obj:Any): SugarExpression
+\end{verbatim}
+
+
+Now our return result should handle both the parsing errors, and successful cases.
+Let us introduce simple wrapper object that could take care of this situation.
+
+
+\begin{verbatim}
+data class CoreResult<T>(
+    val success: Boolean, // tells us if result was successful
+    val value: T?,  // nullable value, can tell us if result of the calculation was successful
+    val error: ICoreError? // error in case our process failed for any reason
+
 )
-\end{minted}
 
-Now our `parse` function should return `ParserResult`.
-What wrong can happen during loading the yaml? well, a lot of things.
-We would simply treat them as an exception handling process.
+\end{verbatim}
+Instead of returning pure SugarExpression from parsing, now we would return `CoreResult<SugarExpression>`
 
-But first we need to define the concrete type of the parser erorr we will return
-\begin{minted}[]{kotlin}
+For example
+\begin{verbatim}
+SugarInt(10)
+\end{verbatim}
+
+will become
+\begin{verbatim}
+CoreResult<SugarInt>(true, SugarInt(10), null)
+\end{verbatim}
+
+This  looks little bit too long. So some helper functions might be of use here.
+
+\begin{verbatim}
+fun parserSuccess(expression: SugarExpression) : CoreResult<SugarExpression>{
+    return CoreResult(true, expression, null)
+}
+\end{verbatim}
+
+Our previous example :
+\begin{verbatim}
+
+CoreResult<SugarInt>(true, SugarInt(10), null)
+
+// vs
+
+parserSuccess(SugarInt(10))
+\end{verbatim}
+
+Little bit longer, but it is all for the greater good.
+
+
+Now we know how to return successful values from the parsing, what about errors?
+
+The first error I can think of during parsing is getting malformed yaml as an input.
+
+\begin{verbatim}
 data class YamlLoadError(
     override val input: Any,
     override val message: String,
-    override val parent: IParserError?
-    ) :IParserError
-\end{minted}
 
-\begin{minted}[]{kotlin}
-fun parse(input:String):ParserResult{
+    ) :ICoreError
+\end{verbatim}
+
+Small helper function would also be userful here.
+\begin{verbatim}
+fun parserFailure(error: ICoreError): CoreResult<SugarExpression>{
+    return CoreResult(false, null, error)
+}
+\end{verbatim}
+
+And our `parse` would need to change to be like this:
+\begin{verbatim}
+fun parse(input:String):CoreResult<SugarExpression>{
     val yaml = Yaml()
-     try{
+    return try{
         val script = yaml.load<Any>(input)
-        return convert(script)
-    }catch (e:Exception){
-        return parserFailure(YamlLoadError(input, e.message!!, null))
+        convert(script)
+    }catch (e:Exception){ // wrapping exception to our CoreResult
+        parserFailure(YamlLoadError(input, e.message!!))
     }
 }
-\end{minted}
+\end{verbatim}
+Now we are safe in terms of handling wrong inputs. But what about the situation when the input is valid yaml, but doesn't make sense in terms of our language?
+For example
+\begin{verbatim}
+[add, [some_nonsence, 2,3], 3]
+\end{verbatim}
+
+We know that first element of the list is our built-in primitive. Let's define the error class for this situation.
+
+\begin{verbatim}
+data class UnsupportedPrimitiveError(
+    override val input: Any,
+    override val message: String,
+    ) : ICoreError
+
+\end{verbatim}
+
+We are good to go now.
+
+\begin{verbatim}
+fun convert(obj:Any):CoreResult<SugarExpression>{
+   if(obj is Int){
+       return  parserSuccess( SugarInt(obj))
+   }
+\end{verbatim}
+
+Basic objects just need to be wrapped in `parserSuccess`. Nothing to see here.
+
+But what about more complex operations? Addition, multiplication?
+
+\begin{verbatim}
+
+if(operation == "add"){
+            val left = convert(obj[1])
+// if our left parameter produced and error during parsing
+// it doesn't make sense to continue the parser process
+// we can just do an arly exit
+            if(!left.success){
+// if result is not success - it is an error, so just return it
+                return left
+            }
+            val right = convert(obj[2])
+            // early exit here as well
+            if(!right.success){
+                return right
+            }
+
+            // at this moment we know that both left and right
+            // are valid results.
+            // So we can safely get their values, not fearing NullReferenceException
+            return parserSuccess( SugarAdd(left.value!!, right.value!!))
+        }
+        if(operation =="mul"){
+            val left = convert(obj[1])
+            if(!left.success){
+                return left
+            }
+            val right = convert(obj[2])
+            if(!right.success){
+                return right
+            }
+            return parserSuccess( SugarMul(left.value!!, right.value!!))
+        }
+\end{verbatim}
+
+This approach added quite some checks during the parsing process, but also gives a lot of control over how errors are handled.
+
+By the way, now it is time to remove that `SugarInt(-42)` from our parsing.
+
+\begin{verbatim}
+    // return SugarInt(-42)
+
+    return parserFailure(UnsupportedPrimitiveError( obj,
+        "unsupported primitive `$obj` during parsing"))
+\end{verbatim}
+
+It is clear what was the root cause of the error, not just some random -42 as a result.
+
+
 \subsection{adding division}
-\label{sec:orge082dfa}
+\label{sec:org694c632}
 \subsection{what should happen if we divide by zero?}
-\label{sec:org805a5d5}
+\label{sec:org8a58892}
 \subsection{It's all about environment}
-\label{sec:org66e8527}
+\label{sec:org8042bab}
 \section{Defining variables for fun and profit}
-\label{sec:orgc142de3}
+\label{sec:orgbc381c6}
 \subsection{Why do we need variables}
-\label{sec:org5ab1a71}
+\label{sec:org42f9468}
 While working with the expressions, it might be useful to have some variables.
 for example, ability to compute something like this:
-\begin{listing}[htbp]
-\begin{minted}[]{yaml}
+\begin{verbatim}
 [mul, x, 3]
-\end{minted}
-\caption{An example of multiplication with variable}
-\end{listing}
+\end{verbatim}
+\captionof{figure}{An example of multiplication with variable}
 To make it happen, we need to do some preparations.
 First of all, we need to understand what `x` means during parsing.
 Secondly, we should take the value attached to `x` from somewhere.
@@ -1206,7 +1336,7 @@ And while we are not working with strings in our language at the moment, we defi
 So during parsing we shall convert this string to some new type of the data.
 Something that can be treated as identifier or variable name. Let's call it a symbol
 
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 data class ESymbol(val value:String):Expression{
     override fun eval(): Expression {
         return this
@@ -1223,9 +1353,9 @@ data class SugarSymbol(val name:String):SugarExpression{
     }
 
 }
-\end{minted}
+\end{verbatim}
 Here's an example how it should work
-\begin{minted}[]{kotlin}
+\begin{verbatim}
     @Test
     fun testOperationWithSymbol(){
         assertEquals(SugarAdd(SugarSymbol("x"), SugarInt(5)),
@@ -1240,16 +1370,16 @@ Here's an example how it should work
             parse("[add, [add, x, y], z]"))
 
     }
-\end{minted}
+\end{verbatim}
 Now we have a way to introduce variables to the expressions, but how are we planning to evaluate them?
 Which brings us to the next question
 \subsection{Where do our variables live?}
-\label{sec:orgc83e356}
+\label{sec:org00ec322}
 Variables should be defined somewhere. There should be a binding between symbol, and the value that symbol represents.
 
 The easiest way to make this mapping would be a dictionary. Or a hashmap if you like.
 
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 data class Environment(val bindings:HashMap<ESymbol, Expression>){
     fun addBinding( name:ESymbol,  value:Expression){
         bindings[name] = value
@@ -1261,13 +1391,13 @@ data class Environment(val bindings:HashMap<ESymbol, Expression>){
         return bindings[name]!!
     }
 }
-\end{minted}
+\end{verbatim}
 As you can see we are assuming that we use core language as part of bindings.
 Since our evaluation process works on the core language, not the sugared one, this is very logical thing to do.
 
 Test cases are following:
 
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 
     @Test
     fun isDefined() {
@@ -1285,40 +1415,40 @@ Test cases are following:
         assertEquals(EInt(5), env.get(ESymbol("x")))
 
     }
-\end{minted}
+\end{verbatim}
 
 What would happen if you try to get the variable that is not defined in the environment?
 You will get a runtime error of course. Error handling will be taken care of later. I promise :)
 Let us focus on well-behaving programs, where nothing strange happens.
 
 \subsection{Using environment in the evaluation}
-\label{sec:orge801904}
+\label{sec:orgeabd8a0}
 We know how to define variable, and bind values to them.
 But it wont' be useful until we can attach this environment to our evaluation.
-\begin{minted}[]{yaml}
+\begin{verbatim}
 ## somewhere out here we should have an environmet with defined 'x'
 [add, x, 5]
-\end{minted}
+\end{verbatim}
 
 The only place where we can plug it in is our \textbf{eval} function.
 Time for the improvement
 
 Remeber our \textbf{Expression} interface from very long time ago?
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 interface Expression{
     fun eval():Expression
     fun unparse():String
 }
-\end{minted}
+\end{verbatim}
 
 We will tweak it a little bit
 
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 interface Expression{
     fun eval(env:Environment):Expression
     fun unparse():String
 }
-\end{minted}
+\end{verbatim}
 
 We're claiming here that evaluation cannot happen in vacuum. We need to take into account an environment we're in.
 Sometimes it might be an empty environment, somethimes it might be full of variable definitions.
@@ -1330,21 +1460,21 @@ Good news is that we have tests, so we know what is broken.
 What else can be done rather than fixing it?
 
 \subsection{Fixing evaluation with environment}
-\label{sec:orgee10107}
+\label{sec:orgf15518f}
 Our first case is really simple one.
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 data class EInt(val value:Int):Expression {
     override fun eval(): Expression {
         return this
     }
    ...
 }
-\end{minted}
+\end{verbatim}
 
 How shall we interpret integer values if they live in some environment?
 Easy. Integers are always integers, so we can simply ignore the environment.
 
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 data class EInt(val value:Int):Expression {
     override fun eval(env:Environment): Expression {
         return this
@@ -1354,7 +1484,7 @@ data class EInt(val value:Int):Expression {
         return value.toString()
     }
 }
-\end{minted}
+\end{verbatim}
 
 Done.
 
@@ -1362,38 +1492,38 @@ With addition and multiplication it would be not as straighforward.
 
 Let's stop and think for a moment.
 What we would like to happen when we have an expression defined within environment?
-\begin{minted}[]{yaml}
+\begin{verbatim}
 ## env: {x = 5}
 [add, x, 10]
-\end{minted}
+\end{verbatim}
 
 I would say it should be converted to
-\begin{minted}[]{yaml}
+\begin{verbatim}
 [add, 5, 10]
-\end{minted}
+\end{verbatim}
 We don't care about the variable name. We care only about value attached to it. Its binding.
 
 Having variable name, variable definition and expression where this variable exists, we want to substitute variable with its value.
 
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 fun substitute(variableName:ESymbol), env:Environment, expession:Expression): Expression
-\end{minted}
+\end{verbatim}
 
 If you're thinking this function should be part of the \textbf{Expression} interface, in tend to agree with you.
 
 Our poor \textbf{Expression} is getting bigger and bigger, but it is a good things.
 
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 interface Expression{
     fun eval(env:Environment):Expression
     fun substitute(symbol:ESymbol, env:Environment):Environment
     fun unparse():String
 }
-\end{minted}
+\end{verbatim}
 
 Now it breaks even more things in our code. But this is the price we need to pay.
 
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 data class EInt(val value:Int):Expression {
     override fun eval(env:Environment): Expression {
         return this
@@ -1407,13 +1537,13 @@ data class EInt(val value:Int):Expression {
         return value.toString()
     }
 }
-\end{minted}
+\end{verbatim}
 
 for integers substituion is as easy as it gets.
 We are just ignoring all the symbols and environment.
 
 Let's see what we can do with \textbf{ESymbol}.
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 data class ESymbol(val name:String):Expression{
     ...
     override fun substitute(symbol: ESymbol, env: Environment): Expression {
@@ -1424,38 +1554,38 @@ data class ESymbol(val name:String):Expression{
     }
    ...
 }
-\end{minted}
+\end{verbatim}
 
 if we are trying to substitue symbol, and it is definted in the environment, we will return record from the variable.
 
 It might sound little bit confusing so here are few examples.
 
-\begin{minted}[]{yaml}
+\begin{verbatim}
 # env: {x = 5}
 x
-\end{minted}
+\end{verbatim}
 
 should be transformed to
 
-\begin{minted}[]{yaml}
+\begin{verbatim}
 5
-\end{minted}
+\end{verbatim}
 
 And if variable is not bound in the environment
-\begin{minted}[]{yaml}
+\begin{verbatim}
 # env: {x = 5}
 y
-\end{minted}
+\end{verbatim}
 
 should remain untouched
-\begin{minted}[]{yaml}
+\begin{verbatim}
 y
-\end{minted}
+\end{verbatim}
 
 
 Now that we've done with substitution for the symbols, addition and multiplication should be simple enough.
 
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 data class EAdd(val a:Expression, val b:Expression): Expression {
    ...
     override fun substitute(symbol: ESymbol, env: Environment): Expression {
@@ -1472,11 +1602,11 @@ data class EMul(val a:Expression, val b:Expression): Expression {
    ...
 }
 
-\end{minted}
+\end{verbatim}
 
 As usual, our tests would show us an example what we expect to happen, and how the variable substitution should look like.
 
-\begin{minted}[]{kotlin}
+\begin{verbatim}
  @Test
     fun testSubstitution(){
         val env1 = Environment(hashMapOf(Pair(ESymbol("x"), EInt(5))))
@@ -1517,14 +1647,14 @@ As usual, our tests would show us an example what we expect to happen, and how t
                 .unparse()
             )
     }
-\end{minted}
+\end{verbatim}
 As you can see, substitutions can be as complex as we want them to be.
 Now it is good time to do something about evaluation.
 \subsection{improving taking into account the variables.}
-\label{sec:orgeaf6787}
+\label{sec:orge694561}
 At this point we know how to substitute variables, and we also know how to evaluate expressions.
 So mixing these two together we will get the evaluation process.
-\begin{minted}[]{kotlin}
+\begin{verbatim}
         assertEquals("10",
             parse("[add, x, x]").desugar()
                 .substitute(ESymbol("x"), env1)
@@ -1542,31 +1672,31 @@ So mixing these two together we will get the evaluation process.
                 .eval(env1)
                 .unparse())
 
-\end{minted}
+\end{verbatim}
 these examples would work, evaluation is simple and straghtforward
 
-\begin{minted}[]{kotlin}
+\begin{verbatim}
         assertEquals("[add, [mul, 5, y], 5]",
             parse("[add, [mul, x, y], x]").desugar()
                 .substitute(ESymbol("x"), env2)
                 .eval(env1)
                 .unparse())
 
-\end{minted}
+\end{verbatim}
 and this will error out.
 Because we cannot evaluate the symbol ' y'
 
 As you can see for the evaluation it is really important to substitute all the variables before we do the evaluation. Otherwise we would get as what is know as 'variable not found' exception.
 
 this is easily fixable. We just need to substitute 'y' as well
-\begin{minted}[]{kotlin}
+\begin{verbatim}
         assertEquals("[add, [mul, 5, y], 5]",
             parse("[add, [mul, x, y], x]").desugar()
                 .substitute(ESymbol("x"), env2)
                 .substitute(ESymbol("y"), env2)
                 .eval(env1)
                 .unparse())
-\end{minted}
+\end{verbatim}
 
 Now it is green.
 
@@ -1577,21 +1707,21 @@ Can't it be taken from the environment during the evaluation phase?
 Very good question. It could  be done that way, but you well need to do foreach replacement for every variable in the environment. While the expression itself might use only oe or two of them. Or manybe none at all.
 
 \subsection{What if our variables are more complex than simple constants?}
-\label{sec:orgd7bb1e2}
+\label{sec:org5e68193}
 Prevously our values for 'x' and 'y' were simple constants. But what if we want them to be expressions?
 What needs to be changed, and how much effort would it require to make evaluation aware of more complicated expressions?
 
 Let us start with the simple one
-\begin{minted}[]{yaml}
+\begin{verbatim}
 # env : {x = [add, 40,2]}
 [add, x, x]
-\end{minted}
+\end{verbatim}
 
 Actually we have several options
 We can substitute the value, or we can evaluate the value.
 
 Substitution example we've seen previously.
-\begin{minted}[]{kotlin}
+\begin{verbatim}
         val complexEnv = Environment(hashMapOf(Pair(ESymbol("x"),
             parse("[add, 10, 33]").desugar())))
 
@@ -1607,7 +1737,7 @@ Substitution example we've seen previously.
                 .substitute(ESymbol("x"), complexEnv)
                 .eval(Environment(hashMapOf()))
                 .unparse())
-\end{minted}
+\end{verbatim}
 
 Upside of this approach is that is straightforward. You know exaclty what is happening and why it is happening by just looking on the expression.
 
@@ -1618,7 +1748,7 @@ Why not just do it?
 
 For that we would need to change our substitution function for the symbol
 currently it looks like this
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 data class ESymbol(val name:String):Expression{
 
    // ...
@@ -1633,11 +1763,11 @@ data class ESymbol(val name:String):Expression{
 
 }
 
-\end{minted}
+\end{verbatim}
 
 Now instead of simply getting symbol value from environment we are evaluating it first.
 
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 data class ESymbol(val name:String):Expression{
 
  // ...
@@ -1659,10 +1789,10 @@ data class ESymbol(val name:String):Expression{
     // ...
 
 }
-\end{minted}
+\end{verbatim}
 
 Unfortunately, our test will be broken now and will fail with the following exception
-\begin{minted}[]{kotlin}
+\begin{verbatim}
        val complexEnv = Environment(hashMapOf(Pair(ESymbol("x"),
             parse("[add, 10, 33]").desugar())))
 
@@ -1673,7 +1803,7 @@ Unfortunately, our test will be broken now and will fail with the following exce
 
 Expected :[add, [add, 10, 33], [add, 10, 33]]
 Actual   :[add, 43, 43]
-\end{minted}
+\end{verbatim}
 
 Any ideas why it happened?
 Of course, previously we were substituting the 'x' with explicit value '[add, 10, 33]'.
@@ -1681,7 +1811,7 @@ And now we are replacing it with the computed value '43' in this case.
 
 Adjusted unit test would look like this
 
-\begin{minted}[]{kotlin}
+\begin{verbatim}
     @Test
     fun testComplicatedExpression(){
         val complexEnv = Environment(hashMapOf(Pair(ESymbol("x"),
@@ -1698,7 +1828,7 @@ Adjusted unit test would look like this
                 .eval(Environment(hashMapOf()))
                 .unparse())
     }
-\end{minted}
+\end{verbatim}
 
 What else has changed?
 Well now we are more computationally efficient: 'x' is calculated only once, during the substitution phase.
@@ -1706,7 +1836,7 @@ Well now we are more computationally efficient: 'x' is calculated only once, dur
 
 Let's look at our test one more time.
 Can we improve something here?
-\begin{minted}[]{kotlin}
+\begin{verbatim}
         val complexEnv = Environment(hashMapOf(Pair(ESymbol("x"),
             parse("[add, 10, 33]").desugar())))
 
@@ -1715,7 +1845,7 @@ Can we improve something here?
                 .substitute(ESymbol("x"), complexEnv)
                 .eval(Environment(hashMapOf()))
                 .unparse())
-\end{minted}
+\end{verbatim}
 
 We are calling `substitute` before the evaluting expression.
 Which is fine, but can we do this substitution right inside of evaluation?
@@ -1723,7 +1853,7 @@ After all symbol knows how to substitute itself given the environment?
 
 What if we do somehting like this:
 
-\begin{minted}[]{kotlin}
+\begin{verbatim}
  data class ESymbol(val name:String):Expression{
      var evaluated = false
 
@@ -1736,10 +1866,10 @@ What if we do somehting like this:
         // return this;
     }
 
-\end{minted}
+\end{verbatim}
 
 And now the test might be simplified a little bit
-\begin{minted}[]{kotlin}
+\begin{verbatim}
         val complexEnv = Environment(hashMapOf(Pair(ESymbol("x"),
             parse("[add, 10, 33]").desugar())))
 
@@ -1758,12 +1888,12 @@ And now the test might be simplified a little bit
                 // no need to substitute manually
                 .eval(complexEnv)
                 .unparse())
-\end{minted}
+\end{verbatim}
 
 
 let's change the evironment and see if our result changes as well.
 
-\begin{minted}[]{kotlin}
+\begin{verbatim}
     @Test
     fun testingSameExpressionDifferentEnvironment(){
 
@@ -1785,7 +1915,7 @@ let's change the evironment and see if our result changes as well.
                 .eval(secondEnv)
                 .unparse())
     }
-\end{minted}
+\end{verbatim}
 
 We have single expression here :  `[add, x, x]`.
 But its value changes based on which environment it is being calculated in.
@@ -1793,11 +1923,11 @@ Change the environment and the outcome will alter.
 Now our programs has become way more generic. Defining variables and evaluating them in differnt contexts is extremely powerful tool.
 
 \subsection{Caching evaluation results in symbols}
-\label{sec:orgb353dc7}
+\label{sec:org0ec1b42}
 Keen-eyed person might ask ``Why can't we cache the computed result in the symbol itself?''
 
 So instead of
-\begin{minted}[]{kotlin}
+\begin{verbatim}
  data class ESymbol(val name:String):Expression{
 
     override fun eval(env: Environment): Expression {
@@ -1815,11 +1945,11 @@ So instead of
         return this
     }
 
-\end{minted}
+\end{verbatim}
 
 We would write something like this
 
-\begin{minted}[]{kotlin}
+\begin{verbatim}
  data class ESymbol(val name:String):Expression{
 // adding flage to the symbol so we know it has been calculated
 var evaluated = false
@@ -1847,12 +1977,12 @@ var evaluated = false
         return this
     }
 
-\end{minted}
+\end{verbatim}
 
 Let's run our tests again.
 What whould happen if we use single expression in both tests?
 would it work? Any guesses?
-\begin{minted}[]{kotlin}
+\begin{verbatim}
     @Test
     fun testingExactlySameExpressionDifferentEnvironment(){
         val firstEnv = Environment(hashMapOf(Pair(ESymbol("x"),
@@ -1873,18 +2003,18 @@ would it work? Any guesses?
                 .unparse())
 
     }
-\end{minted}
+\end{verbatim}
 
 Exactly the same test
 But now it it fails on the second asserttion with very strange error.
 
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 java.lang.ClassCastException: class EAdd cannot be cast
     to class EInt (
         EAdd and EInt are in unnamed module of loader app)
 
 	at EAdd.eval(Domain.kt:44)
-\end{minted}
+\end{verbatim}
 
 Why is that? How come that seemingly indentical tests behave differently?
 
@@ -1904,11 +2034,11 @@ Indeed premature optimisation is the root of all the evil.
 
 
 \subsection{Mutalbe vs immutable variables}
-\label{sec:orgbfcfafa}
+\label{sec:org463c751}
 \section{Adding primitive functions to the language}
-\label{sec:orgd189525}
+\label{sec:orgdda74d7}
 \subsection{How functions should look like}
-\label{sec:org2a8d016}
+\label{sec:orgf2d2f62}
 Now that we know how to add new functions as part of our sugaring process, we might ask ourselves :
 ``Is it possible to define new functions without touching the host language''?
 Now every new defined function should have some correspondence in Kotlin.
@@ -1924,49 +2054,49 @@ It might have a lot of different flavors, but all of them should take care of fe
 \end{enumerate}
 
 We can start with the double function
-\begin{minted}[]{yaml}
+\begin{verbatim}
 fun   # keyword for the function definition
  - [double, x]  # function name and arguments
  - [add, x, x]  # body of the function
-\end{minted}
+\end{verbatim}
 
 Of course short version would be preferrable for unit tests.
-\begin{minted}[]{yaml}
+\begin{verbatim}
 [fun, [double, x], [add, x, x]]
-\end{minted}
+\end{verbatim}
 
 After defining \textbf{double} function, it is really tempting to introduce \textbf{quad} function
 
-\begin{minted}[]{yaml}
+\begin{verbatim}
 [fun, [quad, x], [double, [double, x]]]
-\end{minted}
+\end{verbatim}
 functions should be able to call one another, otherwise what is the point in defining them?
 
 
 Functions without parameters should also be possible.
 
-\begin{minted}[]{yaml}
+\begin{verbatim}
 [fun, [const42], 42]
-\end{minted}
+\end{verbatim}
 
 We will work with functions having single argument for now, and will deal with multiple arguments representation little bit later.
 
 \subsection{Dealing with function and argument names}
-\label{sec:org811635f}
+\label{sec:orge54c9af}
 Now we have a good understanding how our function definitions would look like in yaml, let's think about how we gonna represent them in Kotlin.
 
 Before we start implementing anyting, we need to decide, how we can represent function and variables names.
 
-\begin{minted}[]{yaml}
+\begin{verbatim}
 [fun, [double, x], [add, x, x]]
-\end{minted}
+\end{verbatim}
 
 When looking into this expression from yaml perspective `x` and `double` will be represented as strings.
 But semantically they should be different. They should represent some identifier, or a symbol if you wish.
 
 Therefore we need to expand our parser to support symbols.
 
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 data class ESymbol(val value:String):Expression{
     override fun eval(): Expression {
         return this
@@ -1977,10 +2107,10 @@ data class ESymbol(val value:String):Expression{
     }
 }
 
-\end{minted}
+\end{verbatim}
 
 Here how our representation would look like
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 data class EFunDef(val name:ESymbol, val argument:ESymbol, val body:Expression):Expression{
     override fun eval(): Expression {
         return this
@@ -1991,12 +2121,12 @@ data class EFunDef(val name:ESymbol, val argument:ESymbol, val body:Expression):
     }
 }
 
-\end{minted}
+\end{verbatim}
 
 Function definition is evaluated to itself. It is just a delcaration of the function, it doesn't do anything at all.
 
 To make a function call, we need to have different structure. In some places it is called \textbf{function application}, i would use \textbf{function call}, since it is less academic and more commonly used
-\begin{minted}[]{kotlin}
+\begin{verbatim}
 data class EFunCall(val name:ESymbol, val argument:Expression):Expression{
     override fun eval(): Expression {
         TODO("Not yet implemented")
@@ -2007,108 +2137,108 @@ data class EFunCall(val name:ESymbol, val argument:Expression):Expression{
     }
 
 }
-\end{minted}
+\end{verbatim}
 
 We dont' know exactly how evaluation will work, but we can alreade expand our parser to support both function definitions and function calls.
 \subsection{Expanding parser for function definitions and calls}
-\label{sec:org9dff9ee}
+\label{sec:org4cba7ca}
 When we are starting new implementation, and not totally sure what expected result is, we write tests.
 Parsing function definition looks like a good point.
 
 
 \section{Pros and cons of sugaring}
-\label{sec:org2c6dce3}
+\label{sec:org142d24d}
 \subsection{performance hit}
-\label{sec:org41f43c4}
+\label{sec:org279c977}
 \subsection{simplified runtime}
-\label{sec:org1625bf5}
+\label{sec:orgf804bbf}
 \subsection{Haskell core language}
-\label{sec:orgff1c8e9}
+\label{sec:org687efd5}
 \subsection{targeting degugaring}
-\label{sec:org439767b}
+\label{sec:orgd997f96}
 \subsection{WebAssembly desugar}
-\label{sec:orgecb42e5}
+\label{sec:org5cb9396}
 \subsection{python desugar}
-\label{sec:org7134784}
+\label{sec:orgb7183d4}
 
 \section{Adding variables to the mix}
-\label{sec:org1727189}
+\label{sec:orga89587f}
 \subsection{should variables have a type?}
-\label{sec:org01fdc8c}
+\label{sec:org2b41422}
 \subsection{adding environment to our expressions}
-\label{sec:org96abca6}
+\label{sec:org92dfe58}
 \subsection{if you change the environment, expression changes as well.}
-\label{sec:orgfad6c02}
+\label{sec:orge19396d}
 \subsection{adding string support to the language}
-\label{sec:org491adc7}
+\label{sec:orgcd429fa}
 
 \subsection{powers, exponents, mods and so on}
-\label{sec:org87fd90b}
+\label{sec:orgc5c81f2}
 \section{Evaluating parameters of the funciton. Order matters}
-\label{sec:org1feb9d3}
+\label{sec:org4cc7e2a}
 \subsection{lazy vs eager evaluation. Pros, cons, implementation}
-\label{sec:org0106f1c}
+\label{sec:org223eb0b}
 \section{Adding functions to the language.}
-\label{sec:org9a3282d}
+\label{sec:orgbb6a406}
 \subsection{function definition syntax}
-\label{sec:orgd2a9754}
+\label{sec:org339779b}
 \subsection{function calls syntax}
-\label{sec:org113fd9a}
+\label{sec:orgb603f39}
 \subsection{What should happen if you define function within the function?}
-\label{sec:org63cec90}
+\label{sec:orgca6abe8}
 \subsection{What should happen if you call function within the function?}
-\label{sec:orge77d2ac}
+\label{sec:orgf21f3ad}
 \subsection{Few words on recursive calls}
-\label{sec:orgf70d07d}
+\label{sec:org6d7b0e5}
 \section{Adding conditional expressions}
-\label{sec:org6edd6f5}
+\label{sec:org9f0ac0f}
 \subsection{adding boolean expression to the language}
-\label{sec:org0e99ce0}
+\label{sec:org7b4b60b}
 \subsection{adding IFs to the mix}
-\label{sec:orgb47ef8f}
+\label{sec:orgb270cc0}
 \subsection{control flow is not as straighforward as you might think of it}
-\label{sec:org9db41dc}
+\label{sec:org7244633}
 \section{Adding lists to the language}
-\label{sec:org82a5fa1}
+\label{sec:orgee3c8db}
 \subsection{how generic is your generic?}
-\label{sec:org36a010a}
+\label{sec:org5cf63ae}
 \subsection{how generic is your function?}
-\label{sec:org7eeb56d}
+\label{sec:orga5a77d6}
 \subsection{adding foreach}
-\label{sec:org3035491}
+\label{sec:org3fa53b1}
 \subsection{adding list comprehension}
-\label{sec:orgd7350f3}
+\label{sec:org38c8849}
 \section{Typing and optimisation. part 2}
-\label{sec:org23d1f8d}
+\label{sec:orgfe9a00c}
 \section{Something about evaluation speed}
-\label{sec:org2e4c61c}
+\label{sec:org2ddbc38}
 
 \subsection{environments again}
-\label{sec:orgade853e}
+\label{sec:org90c1435}
 \subsection{tail call optimisation}
-\label{sec:org3136dbe}
+\label{sec:org0e1131c}
 \subsection{JZ, JNZ, JMP, Lisp \& WebAssembly}
-\label{sec:orgef7abd2}
+\label{sec:org7f74ef3}
 \section{Adding types to the language}
-\label{sec:org22b67da}
+\label{sec:org2aafe99}
 \subsection{number vs float vs int32 vs int64}
-\label{sec:orgd39063d}
+\label{sec:org33d1c9a}
 \subsection{function should know about types as well}
-\label{sec:org4c4c255}
+\label{sec:orge93e6bb}
 \section{Minimal required type theory}
-\label{sec:org15fd704}
+\label{sec:org782908c}
 \subsection{Why golang avoided generics for so long}
-\label{sec:org77adc98}
+\label{sec:org42479a5}
 \subsection{How to read typing expressions}
-\label{sec:org6e99cae}
+\label{sec:orgac689bf}
 \section{type inferencing  the language. Simple version}
-\label{sec:orgb726458}
+\label{sec:org3927d4d}
 \section{Generating WebAssembly for fun and profit}
-\label{sec:org84172ef}
+\label{sec:org7bbb7c2}
 \section{Generating JVM based things for fun and profit}
-\label{sec:org28ca051}
+\label{sec:orga6ca8e8}
 \section{type inferencing on steroids}
-\label{sec:org010fedb}
+\label{sec:org26ee595}
 \subsection{How haskell, scala and friends work under the hood}
-\label{sec:org508164f}
+\label{sec:org6c21f7c}
 \end{document}
