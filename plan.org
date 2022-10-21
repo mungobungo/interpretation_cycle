@@ -1066,6 +1066,9 @@ So far we ignored all the errors. They can appear during parsing or evaluation.
 It would be nice to handle them. We cannot assume that our programs will have valid inputs, and won't produce any errors during the execution phase.
 Let us start with simple set of ideas.
 ** Errors during the parsing phase
+Errors might occure during different phases of the interpreation.
+We might face them during the parsing, or during the evaluation.
+
 During the parsing our result might be either `SugarExpression` or an error.
 Error might have different forms - wrong number of parameters to the function, unknown function, or something else.
 
