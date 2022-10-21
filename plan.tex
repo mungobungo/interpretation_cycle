@@ -1,4 +1,4 @@
-% Created 2022-10-21 Fri 15:58
+% Created 2022-10-21 Fri 17:41
 % Intended LaTeX compiler: pdflatex
 \documentclass[11pt]{article}
 \usepackage[utf8]{inputenc}
@@ -29,7 +29,7 @@
 \tableofcontents
 
 \section{Interpretation. part 1}
-\label{sec:org1cdda27}
+\label{sec:org6970f86}
 The core functionality of interpreters might be distilled to two steps.
 \begin{enumerate}
 \item Parse source code to some internal representation
@@ -39,7 +39,7 @@ Here I will do my best to skip as much as possible of the first one.
 You dont' need to know quantum physics to be able to swim.
 
 \subsection{Can you do it?}
-\label{sec:orga53b4c3}
+\label{sec:orgf18c1f4}
 When talking about interpretation  most of the people start thinking about complex things.
 register allocation, memory management, grammars and DFAs.
 I will try to keep it simple.
@@ -65,7 +65,7 @@ We're just transforming on tree structure to another tree structure.
 And this is the essense of interpretation. We're taking one tree structure and converting it to another tree structure.
 If you can convert yaml to html, you're good to go.
 \section{Parsing and other friends}
-\label{sec:orgf559178}
+\label{sec:org820a348}
 Most of the compilers and interpreters books start with parsing.
 You neeed to investigate what DFA is, how it is different from NFA, and why regular expressions are not always the best choice.
 Then you will follow on grammars. Context free grammars, left recursion elimination and so on.
@@ -74,7 +74,7 @@ This usually happens 200-300 pages into the book. And while this is very importa
 Therefore approach in this book will take us as fast as possible to the actual interpretation, skipping all unnecessary steps if possible.
 To begin with we will start with arithmetic expressions.
 \subsection{The simplest expressions you can think of}
-\label{sec:orgc7dba6b}
+\label{sec:org4bd065b}
 Implementing anything on JVM starts with interfaces.
 let's us to the same and implement your first Expression
 \begin{verbatim}
@@ -83,29 +83,29 @@ interface Expression
 
 It's not much, but we will improve it really fast. Just stay tuned.
 \subsubsection{Integer values}
-\label{sec:org08d78c8}
+\label{sec:org1f8dd0f}
 It is hard to do any computations when you don't have numbers.
 \begin{verbatim}
 data class EInt(val v:Int):Expression
 \end{verbatim}
 For now integers are more than enough for us to have. Adding boolean and float values will follow.
 \subsubsection{Addition}
-\label{sec:orgc78ed06}
+\label{sec:org43e3ca7}
 Adding additional addition to the mix would not be a problem
 \begin{verbatim}
 data class EAdd(val a:EInt, val b:EInt): Expression
 
 \end{verbatim}
 \subsubsection{Multiplication}
-\label{sec:org7b78e81}
+\label{sec:org027ef23}
 The same goes for the multiplication
 \begin{verbatim}
 data class EMul(val a:EInt, val b:EInt): Expression
 \end{verbatim}
 \subsection{What else can we add to the expressions}
-\label{sec:orgc236dc6}
+\label{sec:org1363d47}
 \subsection{Representing expressions in a code}
-\label{sec:org93751a2}
+\label{sec:org680917b}
 Now we have all the required components to actually start calulating.
 How would expression
 \begin{verbatim}
@@ -131,9 +131,9 @@ EMul(5, EMul(5, EAdd(2 , 2)))
 \end{verbatim}
 
 \section{Evaluating expressions for fun and profit}
-\label{sec:orge576e22}
+\label{sec:orgc79e749}
 \subsection{Evaluating integers. As simple as it gets}
-\label{sec:orgd65150c}
+\label{sec:orgf7dd314}
 Having expresisons is nice, but why do we need them if we can't calculate them on the fly?
 as TDD teaches us, you whould start from the test first.
 So be it.
@@ -161,7 +161,7 @@ and it also makes our tests green.
 
 
 \subsection{Evaluating addition}
-\label{sec:org0c67985}
+\label{sec:org3cffcfd}
 Now we are facing our first real challenge.
 How can we evaluate addition?
 
@@ -280,7 +280,7 @@ What will happen if during \textbf{eval} some error will be raised?
 These are very good questions. and we will get to them later. For now let us keep our focus on general picture.
 
 \subsection{Evaluating multiplication}
-\label{sec:org62b4df1}
+\label{sec:orgb3549ef}
 After spending so much time on evaluating addition, expanding our expressions to support multiplication is straighforward.
 But first - tests.
 \begin{verbatim}
@@ -349,9 +349,9 @@ fun eval( expression:Expression): Expression{
 
 
 \subsection{Sidenotes}
-\label{sec:orga50d0c2}
+\label{sec:orge41b5b4}
 \subsubsection{Moving evaluation into each expression}
-\label{sec:orgdc6f2df}
+\label{sec:org9d9f7e5}
 At this point all our evaluation is sitting within one \textbf{eval} function.
 If we gonna add more expressions to the interpreter, amount of \textbf{if} statements will grow.
 This can be avoided by extracting specific parts of the code, and moving them to expressions.
@@ -391,7 +391,7 @@ It would require to change the test implementation as well.
 
 \end{verbatim}
 \subsubsection{Simple optimisations}
-\label{sec:org4ce2b05}
+\label{sec:orgf0a4191}
 You might agree that multiplying anything by zero would not help a lot.
 We can include it in our evaluation of \textbf{EMul}
 \begin{verbatim}
@@ -424,7 +424,7 @@ data class EMul(val a:Expression, val b:Expression): Expression {
 }
 \end{verbatim}
 \section{The simplest parser you can think of}
-\label{sec:org9244576}
+\label{sec:orgb9d24e9}
 To make the whole parsing easy, let us reiterate what problem are we trying to solve.
 We need to take a string, and convert it to the expression.
 It can be expressed in a test.
@@ -441,7 +441,7 @@ The most popular programming language of the century.
 YAML.
 
 \subsection{Parsing integers with yaml}
-\label{sec:org2544809}
+\label{sec:org9e511cf}
 To make it work we would need to add dependency to the great \textbf{snakeyaml} library
 \begin{verbatim}
 dependencies {
@@ -467,7 +467,7 @@ fun parse(input:String):Expression{
 
 We cannot parse anything but integers now, but at least our tests are green. Isn't that great?
 \subsection{Expanding yaml expressions to support addition}
-\label{sec:orgebb4fb2}
+\label{sec:org7185654}
 If you remember, our goal is to convert from strings to expressions as easy as possible.
 To make it happen, the language we would use should be very similar to the expressions we have.
 
@@ -518,7 +518,7 @@ is represented as
 \end{verbatim}
 I kinda like it. It is shorter, and represents our internal structure pretty much
 \subsection{parsing yaml with predefined expressions}
-\label{sec:orgb1b081d}
+\label{sec:org33689ee}
 Test goes first
 \begin{verbatim}
    @Test()
@@ -574,7 +574,7 @@ Let's see if we try to parse more complicated expression.
 
 Green as well. Nice work!
 \subsection{Adding multiplication to the mix}
-\label{sec:org86fff36}
+\label{sec:org658ca42}
 Now we know what to expect, so we will add both tests from the beginning
 \begin{verbatim}
     @Test
@@ -616,7 +616,7 @@ Let's see how well they are working together.
 Tests are green. Feels great, isn't it?
 
 \subsection{Evaluating parsed expressions}
-\label{sec:orgd32d858}
+\label{sec:orgef23437}
 Now we have both parth of the story. We can take a string and convert it to an expression.
 We can take an expression and evaluate it.
 Let us add some more tests would confirm this fact.
@@ -633,7 +633,7 @@ Let us add some more tests would confirm this fact.
 I specifically put original version here, so it is easy to compare complexity of expressions and amount of brackets.
 
 \subsection{One more touch}
-\label{sec:org34ac0bd}
+\label{sec:org4f7c258}
 If you look closely on the previous test, you might wondered, why did we use \textbf{EInt(10)} instead of just \textbf{10}? How hard would that be to make it happen?
 
 Well, let's add one more operation, and call it \textbf{unparse}. It will take an expression and convert it to our yaml format. in such a way we will have the whole circle of life
@@ -724,7 +724,7 @@ data class EAdd(val a:Expression, val b:Expression): Expression {
 \end{verbatim}
 As expected, tests are passing.
 \subsection{Evaluating parsed expressions}
-\label{sec:org43e3372}
+\label{sec:org8efb786}
 We took some detour to make the basics work. Now we know how to read yaml, interpret the contents of the yaml using intermediate representation, and save results back to the yaml. Which in turn can be read, interpreted and saved to yaml.
 
 But what is missing is some tests that confirm that our assumptions are correct.
@@ -772,7 +772,7 @@ But what is missing is some tests that confirm that our assumptions are correct.
 In the last test you can see all the parts working together.
 And as you might have guessed, our tests are passing.
 \subsection{Food for thought}
-\label{sec:orga369c24}
+\label{sec:org0331047}
 Parsing plays important role in the whole evaluation process. While we simplified it to the minimum, we still can improve it.
 
 For example - we have duplication while parsing addition and multiplication operations.
@@ -798,7 +798,7 @@ Since we know that multiplication by zero would give us zero in the end, why bot
 And as in previous example - we are simplifiying evaluation by complicating parsing.
 You cannot remove the complexity. You can just push it somewhere else.
 \subsection{Reflecting and Wrapping up}
-\label{sec:orgae790df}
+\label{sec:org6e1b5aa}
 It took some time and turns to get to this point.
 A lot of text, and a lot of explanations. But try to look at it from the different perspective.
 our parser is 26 lines long, and our interpreter is just 42 lines long.
@@ -879,19 +879,19 @@ fun convert(obj:Any):Expression{
 }
 \end{verbatim}
 \section{Core language, host language and a lot of sugar}
-\label{sec:orgb8268e4}
+\label{sec:org459dffc}
 When implementing and interpreter you want to have ability to define new type of capabilites.
 At the same time you don't want to spend too much time refactoring base implementation.
 Changing Ast and tests for it, implementations, is very time consuming process.
 \subsection{core, host, sugared}
-\label{sec:org62df241}
+\label{sec:org363923c}
 This can be avoided by introducing new level of abstration. As you know, you can solve every problem in IT by adding an additional level of abstraction.
 Let's call our arimetic language we have the core language. It is core of our interpreter, and we don't want to expose its internal for the customers.
 We would like to keep it as small as possible, so all refatoring and optimisations would have smaller blast radius.
 As for ease of use we can create new expressions, which we would call sugared expressions.
 They will be used as our interface, and should be converted to the core language to be interpreted
 \subsection{Adding sugar}
-\label{sec:org162a0aa}
+\label{sec:orgb4c4af1}
 Let's say we want to add new operation to the mix \textbf{sub}, which stands for the substraction.
 how would it fit to our idea of sugared language?
 \begin{verbatim}
@@ -922,7 +922,7 @@ Now it is pretty much replicating what with had with the usual expression.
 Main difference might be that we don't evaluate anything here. We're just converting Sugared expression to our core expressions.
 
 \subsubsection{Defining substraction}
-\label{sec:orgb65c08d}
+\label{sec:org3cb1138}
 Now we can extend our sugared languge with substraction function.
 \begin{verbatim}
 
@@ -1040,7 +1040,7 @@ It is a good idea to test that evaluation of substraciton works as well.
 
 We've just expanded our language with one more built-in function, wihout touching the core interpretation logic. And whast is even more interesting - the result of evaluation is correct.
 \subsection{Adding negation operation}
-\label{sec:org2ad0447}
+\label{sec:orgdc6da89}
 Now we can expand our primitive list by adding operation \textbf{neg} which should change the sight of the operation.
 
 Since we're working with the sugared operations, we can approach to this having this definition
@@ -1114,7 +1114,7 @@ Remember, there's no such thing as too many tests, if they all make sense.
 We will get back to the sugaring concept later. It is very powerful idea worth revisiting.
 
 \subsection{Food for thought}
-\label{sec:orgb88e71e}
+\label{sec:org8e4e775}
 \begin{itemize}
 \item You want to add \textbf{uminus} operation, which is operates exactly like negation, but has different representation in yaml syntax.
 \begin{verbatim}
@@ -1124,9 +1124,9 @@ Can you think of a way to make this evaluation possible touching only parsing?
 \end{itemize}
 
 \section{Errors and strange things}
-\label{sec:org45c9457}
+\label{sec:orgd9043c7}
 \subsection{Errors handling perspective}
-\label{sec:org7ef0068}
+\label{sec:org299147d}
 So far we ignored all the errors. They can appear during parsing or evaluation.
 It would be nice to handle them. We cannot assume that our programs will have valid inputs, and won't produce any errors during the execution phase.
 Let us start with simple set of ideas.
@@ -1310,17 +1310,278 @@ By the way, now it is time to remove that `SugarInt(-42)` from our parsing.
 
 It is clear what was the root cause of the error, not just some random -42 as a result.
 
+As you might've guessed such a change would require refactoring of our tests.
 
-\subsection{adding division}
-\label{sec:org694c632}
+\begin{verbatim}
+@Test
+    fun testSimpleAdd(){
+        //assertEquals(SugarAdd(SugarInt(3), SugarInt(5)), parse("[add, 3, 5]"))
+        assertEquals(SugarAdd(SugarInt(3), SugarInt(5)), parse("[add, 3, 5]").value!!)
+    }
+\end{verbatim}
+
+Rinse and repeat 40 times.
+\subsection{Handling errors in evaluation}
+\label{sec:orge32449e}
+Parsing is not the only place where errors can happen. One can argue that most of the errors are happening in the runtime. Who am I to disagree?
+
+We are gonna change our `eval` function the same way we did it for the parsing.
+
+\begin{verbatim}
+interface Expression{
+    fun eval():Expression
+\end{verbatim}
+
+would become
+
+\begin{verbatim}
+
+
+
+interface Expression{
+
+    fun eval():CoreResult<Expression>
+\end{verbatim}
+
+As it was with parsing the basic types are easy to change.
+
+\begin{verbatim}
+data class EInt(val value:Int):Expression {
+    override fun eval(): CoreResult<Expression> {
+        return evalSuccess(this)
+    }
+\end{verbatim}
+
+We don't expect any errors here at all.
+
+But when it comes to ``, plot thickens a bit.
+
+\begin{verbatim}
+data class EMul(val a:Expression, val b:Expression): Expression {
+
+
+
+    override fun eval(): CoreResult<Expression> {
+
+        // type error here
+        val left = a.eval() as EInt
+        if (left.value == 0){
+            return evalSuccess(zeroInt)
+        }
+
+       // and here as well
+        val right = b.eval() as EInt
+        return EInt(left.value * right.value)
+    }
+\end{verbatim}
+
+Now eval returns `CoreResult<Expression>`, so we cannot cast it easily to `EInt`.
+Moreover, we cannot be even sure that our result is correct one.
+Evaluation should be changed to replicate this information.
+
+First let's deal with the situation in case our evaluation result is not successfull one.
+\begin{verbatim}
+data class EMul(val left:Expression, val right:Expression): Expression {
+
+override fun eval(): CoreResult<Expression> {
+
+    // evaluate left argument
+        val leftResult = left.eval()
+// early exit if not successful
+        if(!leftResult.success){
+
+            return leftResult
+        }
+
+        val left = leftResult.value!! as EInt
+        if (left.value == 0){
+            return evalSuccess(zeroInt)
+        }
+// do the same to the right argument
+        val rightResult = right.eval()
+        if(!rightResult.success){
+            return rightResult
+        }
+
+        val right = rightResult.value!! as EInt
+
+        // Do not forget to wrap EInt into CoreResult<Expression> type
+        return evalSuccess(EInt(left.value * right.value))
+    }
+\end{verbatim}
+
+Looks good, but can we do better?
+What about situation when we evaluated an argument, but it's type is not an integer?
+Seems like we need one more error for this kind of situation.
+
+\begin{verbatim}
+data class OperationTypeMismatchError(
+    override val input: Any,
+    override val message: String,
+) : ICoreError
+fun evalTypeError(expression: Expression, error:String):CoreResult<Expression>{
+    return CoreResult(false, null, OperationTypeMismatchError(expression, error))
+}
+
+\end{verbatim}
+Just like we did it with parsing. Error class goes hand in hand with the helper function.
+
+Our multiplication looks like this now:
+\begin{verbatim}
+data class EMul(val left:Expression, val right:Expression): Expression {
+    override fun eval(): CoreResult<Expression> {
+        val leftResult = left.eval()
+        if(!leftResult.success){
+            return leftResult
+        }
+
+        if(leftResult.value !is EInt){
+            return evalTypeError(left, "type error while evaluating left argument of 'mul'," +
+                    " expected an integer value, but got `${leftResult.value!!.unparse()}`")
+        }
+
+        val left = leftResult.value!! as EInt
+        if (left.value == 0){
+            return evalSuccess(zeroInt)
+        }
+
+        val rightResult = right.eval()
+        if(!rightResult.success){
+            return rightResult
+        }
+        if(rightResult.value !is EInt){
+            return evalTypeError(left, "type error while evaluating right argument of 'mul'," +
+                    " expected an integer value, but got `${rightResult.value!!.unparse()}`")
+        }
+        val right = rightResult.value!! as EInt
+        return evalSuccess(EInt(left.value * right.value))
+    }
+\end{verbatim}
+
+We can have reasonable erorr messages, and also show the incorrect value that was evaluated.
+Definitely will help in case of debugging needs.
+
+What is left? Of course, refactoring the unit tests. This will be not a small task. At the same time having quick feedback loop on what is working and what is not cannot be overestimated.
+
+
+\begin{verbatim}
+// before
+    @Test
+    fun testSimpleInteger() {
+        assertEquals(EInt(5), EInt(5).eval())
+        assertEquals(EInt(-5),(EInt(-5)).eval())
+        assertEquals(EInt(0), EInt(0).eval())
+    }
+    // after
+    @Test
+    fun testSimpleInteger() {
+        assertEquals(EInt(5), EInt(5).eval().value!!)
+        assertEquals(EInt(-5),(EInt(-5)).eval().value!!)
+        assertEquals(EInt(0), EInt(0).eval().value!!)
+    }
+\end{verbatim}
+
 \subsection{what should happen if we divide by zero?}
-\label{sec:org8a58892}
-\subsection{It's all about environment}
-\label{sec:org8042bab}
+\label{sec:orgf5894bc}
+In the past few pages we've investigated and handled multiple erorrs that might happen during the parsing and the evaluation. We've forgot probalby the most annoying one - division by zero.
+
+Adding the division operation is straghtforward - we've done it several times.
+
+\begin{verbatim}
+// introducing the error class
+data class DivisionByZeroError(
+    override val input: Any,
+    override val message: String,
+) : ICoreError
+
+data class EDiv(val left:Expression, val right: Expression): Expression {
+    override fun eval(): CoreResult<Expression> {
+        val leftResult = left.eval();
+        if(!leftResult.success){
+            return leftResult
+        }
+        if(leftResult.value !is EInt){
+            return evalTypeError(left, "type error while evaluating left argument of 'div'," +
+                    " expected an integer value, but got `${leftResult.value!!.unparse()}`")
+        }
+
+        val l = leftResult.value!! as EInt
+
+        val rightResult = right.eval()
+        if(!rightResult.success){
+            return rightResult
+        }
+        if(rightResult.value !is EInt){
+            return evalTypeError(left, "type error while evaluating right argument of 'div'," +
+                    " expected an integer value, but got `${rightResult.value!!.unparse()}`")
+        }
+        val r = rightResult.value!! as EInt
+
+        // handling the division by zero here
+        if(r.value == 0){
+            return CoreResult(false, null,
+                DivisionByZeroError(this, "division by zero"))
+        }
+        return evalSuccess( EInt(l.value / r.value))
+
+    }
+
+\end{verbatim}
+
+Evaluation is done, now it is time to fix the parsing part.
+\begin{verbatim}
+data class SugarDiv(val left:SugarExpression, val right:SugarExpression): SugarExpression{
+    override fun desugar(): Expression {
+        return EDiv(left.desugar(), right.desugar())
+    }
+}
+
+// parsing
+ if(operation =="div"){
+            val left = convert(obj[1])
+            if(!left.success){
+                return left
+            }
+            val right = convert(obj[2])
+            if(!right.success){
+                return right
+            }
+            return parserSuccess( SugarDiv(left.value!!, right.value!!))
+        }
+\end{verbatim}
+
+And few more tests just to be sure.
+
+\begin{verbatim}
+    @Test
+    fun testSimpleDivisionWithParsing() {
+        assertEquals(EInt(0), parse("[div, 0, 42]").value!!.desugar().eval().value!!)
+        assertEquals(true, parse("[div, 42, 0]").value!!.desugar().eval().error is DivisionByZeroError)
+        assertEquals(true, parse("[div, 42, [add, -1, 1]]").value!!.desugar().eval().error is DivisionByZeroError)
+        assertEquals(EInt(42),parse("[div, 42, 1]").value!!.desugar().eval().value!!)
+        assertEquals(EInt(1), parse("[div, 2, 2]").value!!.desugar().eval().value!!)
+\end{verbatim}
+\subsection{Conclusion}
+\label{sec:orgffa0f4c}
+Good error handling is not an easy task. It is simple to just return an error about DivisionByZero like we did in our example in division.
+But what about the context? Shell we show stacktrace in error message? If our division happens deep inside of some other expression it might not be very useful.
+What about the sugaring? Now all the error handling happens in the core language. it brings it own pros and cons. It is easy to extend language - changes are required in a small subset of the code.
+At the same time if error happens in degugared expression, we have no ability to determine what was the original sugared expression that causes this error in the first place.
+It might get even more complicated. If we store our yaml expression in a file, it would be nice to know where exactly our error happened. Meaning we need to update the parser to add source line numbers to our sugared expressions.
+
+\subsection{Food for thoughts}
+\label{sec:orgf452388}
+\begin{itemize}
+\item Expand Expression by adding field storing SugaredExpression.
+\item Update `desugar` method, so it would return Expression that knows about its origin.
+\item Update error handling in such a way that it will print out SugarExpression that caused an error
+\item Add `parent` field to the CoreError, so now error handler can have stack trace of the error.
+\end{itemize}
+
 \section{Defining variables for fun and profit}
-\label{sec:orgbc381c6}
+\label{sec:orge46e55c}
 \subsection{Why do we need variables}
-\label{sec:org42f9468}
+\label{sec:org98ac530}
 While working with the expressions, it might be useful to have some variables.
 for example, ability to compute something like this:
 \begin{verbatim}
@@ -1374,7 +1635,7 @@ Here's an example how it should work
 Now we have a way to introduce variables to the expressions, but how are we planning to evaluate them?
 Which brings us to the next question
 \subsection{Where do our variables live?}
-\label{sec:org00ec322}
+\label{sec:orgb464cf9}
 Variables should be defined somewhere. There should be a binding between symbol, and the value that symbol represents.
 
 The easiest way to make this mapping would be a dictionary. Or a hashmap if you like.
@@ -1422,7 +1683,7 @@ You will get a runtime error of course. Error handling will be taken care of lat
 Let us focus on well-behaving programs, where nothing strange happens.
 
 \subsection{Using environment in the evaluation}
-\label{sec:orgeabd8a0}
+\label{sec:org7ab5ff4}
 We know how to define variable, and bind values to them.
 But it wont' be useful until we can attach this environment to our evaluation.
 \begin{verbatim}
@@ -1460,7 +1721,7 @@ Good news is that we have tests, so we know what is broken.
 What else can be done rather than fixing it?
 
 \subsection{Fixing evaluation with environment}
-\label{sec:orgf15518f}
+\label{sec:org6cb6930}
 Our first case is really simple one.
 \begin{verbatim}
 data class EInt(val value:Int):Expression {
@@ -1651,7 +1912,7 @@ As usual, our tests would show us an example what we expect to happen, and how t
 As you can see, substitutions can be as complex as we want them to be.
 Now it is good time to do something about evaluation.
 \subsection{improving taking into account the variables.}
-\label{sec:orge694561}
+\label{sec:org5662942}
 At this point we know how to substitute variables, and we also know how to evaluate expressions.
 So mixing these two together we will get the evaluation process.
 \begin{verbatim}
@@ -1707,7 +1968,7 @@ Can't it be taken from the environment during the evaluation phase?
 Very good question. It could  be done that way, but you well need to do foreach replacement for every variable in the environment. While the expression itself might use only oe or two of them. Or manybe none at all.
 
 \subsection{What if our variables are more complex than simple constants?}
-\label{sec:org5e68193}
+\label{sec:orgd67be14}
 Prevously our values for 'x' and 'y' were simple constants. But what if we want them to be expressions?
 What needs to be changed, and how much effort would it require to make evaluation aware of more complicated expressions?
 
@@ -1923,7 +2184,7 @@ Change the environment and the outcome will alter.
 Now our programs has become way more generic. Defining variables and evaluating them in differnt contexts is extremely powerful tool.
 
 \subsection{Caching evaluation results in symbols}
-\label{sec:org0ec1b42}
+\label{sec:org08cf49d}
 Keen-eyed person might ask ``Why can't we cache the computed result in the symbol itself?''
 
 So instead of
@@ -2034,11 +2295,11 @@ Indeed premature optimisation is the root of all the evil.
 
 
 \subsection{Mutalbe vs immutable variables}
-\label{sec:org463c751}
+\label{sec:orge8405fa}
 \section{Adding primitive functions to the language}
-\label{sec:orgdda74d7}
+\label{sec:orgf7ee279}
 \subsection{How functions should look like}
-\label{sec:orgf2d2f62}
+\label{sec:orgd72c5a5}
 Now that we know how to add new functions as part of our sugaring process, we might ask ourselves :
 ``Is it possible to define new functions without touching the host language''?
 Now every new defined function should have some correspondence in Kotlin.
@@ -2082,7 +2343,7 @@ Functions without parameters should also be possible.
 We will work with functions having single argument for now, and will deal with multiple arguments representation little bit later.
 
 \subsection{Dealing with function and argument names}
-\label{sec:orge54c9af}
+\label{sec:org53aad1f}
 Now we have a good understanding how our function definitions would look like in yaml, let's think about how we gonna represent them in Kotlin.
 
 Before we start implementing anyting, we need to decide, how we can represent function and variables names.
@@ -2141,104 +2402,104 @@ data class EFunCall(val name:ESymbol, val argument:Expression):Expression{
 
 We dont' know exactly how evaluation will work, but we can alreade expand our parser to support both function definitions and function calls.
 \subsection{Expanding parser for function definitions and calls}
-\label{sec:org4cba7ca}
+\label{sec:orge301356}
 When we are starting new implementation, and not totally sure what expected result is, we write tests.
 Parsing function definition looks like a good point.
 
 
 \section{Pros and cons of sugaring}
-\label{sec:org142d24d}
+\label{sec:orga3409e2}
 \subsection{performance hit}
-\label{sec:org279c977}
+\label{sec:org83d4080}
 \subsection{simplified runtime}
-\label{sec:orgf804bbf}
+\label{sec:org6014a77}
 \subsection{Haskell core language}
-\label{sec:org687efd5}
+\label{sec:orgdfad20f}
 \subsection{targeting degugaring}
-\label{sec:orgd997f96}
+\label{sec:org43fb042}
 \subsection{WebAssembly desugar}
-\label{sec:org5cb9396}
+\label{sec:orgb9baf86}
 \subsection{python desugar}
-\label{sec:orgb7183d4}
+\label{sec:org138e88a}
 
 \section{Adding variables to the mix}
-\label{sec:orga89587f}
+\label{sec:orge9d6d0a}
 \subsection{should variables have a type?}
-\label{sec:org2b41422}
+\label{sec:orge535017}
 \subsection{adding environment to our expressions}
-\label{sec:org92dfe58}
+\label{sec:orgf0bcde1}
 \subsection{if you change the environment, expression changes as well.}
-\label{sec:orge19396d}
+\label{sec:org184657e}
 \subsection{adding string support to the language}
-\label{sec:orgcd429fa}
+\label{sec:org4d7f54b}
 
 \subsection{powers, exponents, mods and so on}
-\label{sec:orgc5c81f2}
+\label{sec:org3d517b3}
 \section{Evaluating parameters of the funciton. Order matters}
-\label{sec:org4cc7e2a}
+\label{sec:org8c348fc}
 \subsection{lazy vs eager evaluation. Pros, cons, implementation}
-\label{sec:org223eb0b}
+\label{sec:org5d3b1e5}
 \section{Adding functions to the language.}
-\label{sec:orgbb6a406}
+\label{sec:org1df58d1}
 \subsection{function definition syntax}
-\label{sec:org339779b}
+\label{sec:org44e4457}
 \subsection{function calls syntax}
-\label{sec:orgb603f39}
+\label{sec:org7ff6b4f}
 \subsection{What should happen if you define function within the function?}
-\label{sec:orgca6abe8}
+\label{sec:org3b4555d}
 \subsection{What should happen if you call function within the function?}
-\label{sec:orgf21f3ad}
+\label{sec:org8d01989}
 \subsection{Few words on recursive calls}
-\label{sec:org6d7b0e5}
+\label{sec:org0fbc0ae}
 \section{Adding conditional expressions}
-\label{sec:org9f0ac0f}
+\label{sec:org695f66b}
 \subsection{adding boolean expression to the language}
-\label{sec:org7b4b60b}
+\label{sec:org656d09f}
 \subsection{adding IFs to the mix}
-\label{sec:orgb270cc0}
+\label{sec:orgc5cc7c0}
 \subsection{control flow is not as straighforward as you might think of it}
-\label{sec:org7244633}
+\label{sec:orgf908723}
 \section{Adding lists to the language}
-\label{sec:orgee3c8db}
+\label{sec:org3902d93}
 \subsection{how generic is your generic?}
-\label{sec:org5cf63ae}
+\label{sec:orgbce4c72}
 \subsection{how generic is your function?}
-\label{sec:orga5a77d6}
+\label{sec:orgef3af4b}
 \subsection{adding foreach}
-\label{sec:org3fa53b1}
+\label{sec:orgcb94904}
 \subsection{adding list comprehension}
-\label{sec:org38c8849}
+\label{sec:org00c4ace}
 \section{Typing and optimisation. part 2}
-\label{sec:orgfe9a00c}
+\label{sec:org5eb7408}
 \section{Something about evaluation speed}
-\label{sec:org2ddbc38}
+\label{sec:org574469e}
 
 \subsection{environments again}
-\label{sec:org90c1435}
+\label{sec:org4c60c03}
 \subsection{tail call optimisation}
-\label{sec:org0e1131c}
+\label{sec:orgf9298dd}
 \subsection{JZ, JNZ, JMP, Lisp \& WebAssembly}
-\label{sec:org7f74ef3}
+\label{sec:org03310f4}
 \section{Adding types to the language}
-\label{sec:org2aafe99}
+\label{sec:orgf05c8a0}
 \subsection{number vs float vs int32 vs int64}
-\label{sec:org33d1c9a}
+\label{sec:orge4ccba8}
 \subsection{function should know about types as well}
-\label{sec:orge93e6bb}
+\label{sec:org5e6733b}
 \section{Minimal required type theory}
-\label{sec:org782908c}
+\label{sec:orge4322c8}
 \subsection{Why golang avoided generics for so long}
-\label{sec:org42479a5}
+\label{sec:orga27fb4b}
 \subsection{How to read typing expressions}
-\label{sec:orgac689bf}
+\label{sec:orgbfaf9e8}
 \section{type inferencing  the language. Simple version}
-\label{sec:org3927d4d}
+\label{sec:orgba3284a}
 \section{Generating WebAssembly for fun and profit}
-\label{sec:org7bbb7c2}
+\label{sec:orge6de498}
 \section{Generating JVM based things for fun and profit}
-\label{sec:orga6ca8e8}
+\label{sec:org870bbf6}
 \section{type inferencing on steroids}
-\label{sec:org26ee595}
+\label{sec:org0c2ad84}
 \subsection{How haskell, scala and friends work under the hood}
-\label{sec:org6c21f7c}
+\label{sec:orgd224644}
 \end{document}

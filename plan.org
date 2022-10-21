@@ -1344,9 +1344,169 @@ override fun eval(): CoreResult<Expression> {
     }
 #+end_src
 
+Looks good, but can we do better?
+What about situation when we evaluated an argument, but it's type is not an integer?
+Seems like we need one more error for this kind of situation.
+
+#+begin_src kotlin
+data class OperationTypeMismatchError(
+    override val input: Any,
+    override val message: String,
+) : ICoreError
+fun evalTypeError(expression: Expression, error:String):CoreResult<Expression>{
+    return CoreResult(false, null, OperationTypeMismatchError(expression, error))
+}
+
+#+end_src
+Just like we did it with parsing. Error class goes hand in hand with the helper function.
+
+Our multiplication looks like this now:
+#+begin_src kotlin
+data class EMul(val left:Expression, val right:Expression): Expression {
+    override fun eval(): CoreResult<Expression> {
+        val leftResult = left.eval()
+        if(!leftResult.success){
+            return leftResult
+        }
+
+        if(leftResult.value !is EInt){
+            return evalTypeError(left, "type error while evaluating left argument of 'mul'," +
+                    " expected an integer value, but got `${leftResult.value!!.unparse()}`")
+        }
+
+        val left = leftResult.value!! as EInt
+        if (left.value == 0){
+            return evalSuccess(zeroInt)
+        }
+
+        val rightResult = right.eval()
+        if(!rightResult.success){
+            return rightResult
+        }
+        if(rightResult.value !is EInt){
+            return evalTypeError(left, "type error while evaluating right argument of 'mul'," +
+                    " expected an integer value, but got `${rightResult.value!!.unparse()}`")
+        }
+        val right = rightResult.value!! as EInt
+        return evalSuccess(EInt(left.value * right.value))
+    }
+#+end_src
+
+We can have reasonable erorr messages, and also show the incorrect value that was evaluated.
+Definitely will help in case of debugging needs.
+
+What is left? Of course, refactoring the unit tests. This will be not a small task. At the same time having quick feedback loop on what is working and what is not cannot be overestimated.
+
+
+#+begin_src kotlin
+// before
+    @Test
+    fun testSimpleInteger() {
+        assertEquals(EInt(5), EInt(5).eval())
+        assertEquals(EInt(-5),(EInt(-5)).eval())
+        assertEquals(EInt(0), EInt(0).eval())
+    }
+    // after
+    @Test
+    fun testSimpleInteger() {
+        assertEquals(EInt(5), EInt(5).eval().value!!)
+        assertEquals(EInt(-5),(EInt(-5)).eval().value!!)
+        assertEquals(EInt(0), EInt(0).eval().value!!)
+    }
+#+end_src
 
 ** what should happen if we divide by zero?
-** It's all about environment
+In the past few pages we've investigated and handled multiple erorrs that might happen during the parsing and the evaluation. We've forgot probalby the most annoying one - division by zero.
+
+Adding the division operation is straghtforward - we've done it several times.
+
+#+begin_src kotlin
+// introducing the error class
+data class DivisionByZeroError(
+    override val input: Any,
+    override val message: String,
+) : ICoreError
+
+data class EDiv(val left:Expression, val right: Expression): Expression {
+    override fun eval(): CoreResult<Expression> {
+        val leftResult = left.eval();
+        if(!leftResult.success){
+            return leftResult
+        }
+        if(leftResult.value !is EInt){
+            return evalTypeError(left, "type error while evaluating left argument of 'div'," +
+                    " expected an integer value, but got `${leftResult.value!!.unparse()}`")
+        }
+
+        val l = leftResult.value!! as EInt
+
+        val rightResult = right.eval()
+        if(!rightResult.success){
+            return rightResult
+        }
+        if(rightResult.value !is EInt){
+            return evalTypeError(left, "type error while evaluating right argument of 'div'," +
+                    " expected an integer value, but got `${rightResult.value!!.unparse()}`")
+        }
+        val r = rightResult.value!! as EInt
+
+        // handling the division by zero here
+        if(r.value == 0){
+            return CoreResult(false, null,
+                DivisionByZeroError(this, "division by zero"))
+        }
+        return evalSuccess( EInt(l.value / r.value))
+
+    }
+
+#+end_src
+
+Evaluation is done, now it is time to fix the parsing part.
+#+begin_src kotlin
+data class SugarDiv(val left:SugarExpression, val right:SugarExpression): SugarExpression{
+    override fun desugar(): Expression {
+        return EDiv(left.desugar(), right.desugar())
+    }
+}
+
+// parsing
+ if(operation =="div"){
+            val left = convert(obj[1])
+            if(!left.success){
+                return left
+            }
+            val right = convert(obj[2])
+            if(!right.success){
+                return right
+            }
+            return parserSuccess( SugarDiv(left.value!!, right.value!!))
+        }
+#+end_src
+
+And few more tests just to be sure.
+
+#+begin_src kotlin
+    @Test
+    fun testSimpleDivisionWithParsing() {
+        assertEquals(EInt(0), parse("[div, 0, 42]").value!!.desugar().eval().value!!)
+        assertEquals(true, parse("[div, 42, 0]").value!!.desugar().eval().error is DivisionByZeroError)
+        assertEquals(true, parse("[div, 42, [add, -1, 1]]").value!!.desugar().eval().error is DivisionByZeroError)
+        assertEquals(EInt(42),parse("[div, 42, 1]").value!!.desugar().eval().value!!)
+        assertEquals(EInt(1), parse("[div, 2, 2]").value!!.desugar().eval().value!!)
+#+end_src
+** Conclusion
+Good error handling is not an easy task. It is simple to just return an error about DivisionByZero like we did in our example in division.
+But what about the context? Shell we show stacktrace in error message? If our division happens deep inside of some other expression it might not be very useful.
+What about the sugaring? Now all the error handling happens in the core language. it brings it own pros and cons. It is easy to extend language - changes are required in a small subset of the code.
+At the same time if error happens in degugared expression, we have no ability to determine what was the original sugared expression that causes this error in the first place.
+It might get even more complicated. If we store our yaml expression in a file, it would be nice to know where exactly our error happened. Meaning we need to update the parser to add source line numbers to our sugared expressions.
+
+** Food for thoughts
+- Expand Expression by adding field storing SugaredExpression.
+- Update `desugar` method, so it would return Expression that knows about its origin.
+- Update error handling in such a way that it will print out SugarExpression that caused an error
+- Add `parent` field to the CoreError, so now error handler can have stack trace of the error.
+
 * Defining variables for fun and profit
 ** Why do we need variables
 While working with the expressions, it might be useful to have some variables.
